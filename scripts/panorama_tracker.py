@@ -294,6 +294,9 @@ class CLIP_OT_panorama_camera(bpy.types.Operator):
         background = nodetree.nodes.get("Background")
         nodetree.links.new(tex_env.outputs[0], background.inputs[0])
 
+        # Set the cursor
+        scene.cursor_location = (1,0,0)
+
         return {'FINISHED'}
 
 
