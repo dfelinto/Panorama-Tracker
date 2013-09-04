@@ -127,47 +127,6 @@ def sphere_to_euler(vecx, vecy, vecz):
 # Main function
 # ###############################
 
-def calculate_initial_orientation(scene):
-    """return the compound orientation of the tracker + scene orientations"""
-
-    movieclip = bpy.data.movieclips.get(scene.panorama_movieclip)
-    if not movieclip: return (0,0,0)
-
-    settings = movieclip.panorama_settings
-    #orientation = settings.orientation
-
-    tracking = movieclip.tracking.objects[movieclip.tracking.active_object_index]
-    focus = tracking.tracks.get(settings.focus)
-    target = tracking.tracks.get(settings.target)
-    frame_current = scene.frame_current
-
-    if not focus or not target: return (0,0,0)
-
-    focus_marker = focus.markers.find_frame(frame_current)
-    target_marker = target.markers.find_frame(frame_current)
-
-    if not focus_marker or not target_marker: return (0,0,0)
-
-    vecx = equirectangular_to_sphere(focus_marker.co)
-    vecy = equirectangular_to_sphere(target_marker.co)
-
-    if settings.flip and 0:
-        vecz = vecx.cross(vecy)
-    else:
-        vecz = vecy.cross(vecx)
-    vecz.normalize()
-
-    # retarget y axis again
-    nvecy = vecz.cross(vecx)
-    nvecy.normalize()
-
-    # store orientation
-    orientation = sphere_to_euler(vecx, nvecy, vecz)
-    orientation = (settings.orientation.to_matrix() * orientation.to_matrix()).to_euler()
-
-    return (-orientation[0], -orientation[1], -orientation[2])
-
-
 def calculate_orientation(scene):
     """return the compound orientation of the tracker + scene orientations"""
 
@@ -175,7 +134,6 @@ def calculate_orientation(scene):
     if not movieclip: return (0,0,0)
 
     settings = movieclip.panorama_settings
-    #orientation = settings.orientation
 
     tracking = movieclip.tracking.objects[movieclip.tracking.active_object_index]
     focus = tracking.tracks.get(settings.focus)
@@ -284,7 +242,8 @@ class CLIP_OT_panorama_camera(bpy.types.Operator):
         tex_env.image_user.use_auto_refresh = True
         tex_env.image_user.use_cyclic = True
 
-        tex_env.texture_mapping.rotation = calculate_orientation(scene)
+        # start with the mapping matching the render and current frame
+        tex_env.texture_mapping.rotation = (0,0,0)
 
         # Linking
         background = nodetree.nodes.get("Background")
@@ -299,9 +258,9 @@ class CLIP_OT_panorama_camera(bpy.types.Operator):
         scene.cursor_location = (1,0,0)
 
         # Uses the current orientation as the final one
-        #settings.orientation = calculate_initial_orientation(scene)
         settings.orientation = (0,0,0)
-        #settings.orientation = calculate_orientation(scene)
+        orientation = calculate_orientation(scene)
+        settings.orientation = Euler((-orientation[0], -orientation[1], -orientation[2])).to_matrix().inverted().to_euler()
 
         return {'FINISHED'}
 
@@ -379,10 +338,6 @@ class CLIP_PanoramaPanel(bpy.types.Panel):
 
         col.separator()
         col.operator("clip.panorama_camera", icon="CAMERA_DATA")
-
-        col.separator()
-        row = col.row()
-        row.prop(settings, "orientation", text="")
 
 
 def update_orientation(self, context):
