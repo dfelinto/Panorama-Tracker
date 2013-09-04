@@ -246,6 +246,11 @@ class CLIP_OT_panorama_camera(bpy.types.Operator):
         background = nodetree.nodes.get("Background")
         nodetree.links.new(tex_env.outputs[0], background.inputs[0])
 
+        # Render Settings
+        scene.render.resolution_x = movieclip.size[0]
+        scene.render.resolution_y = movieclip.size[1]
+        scene.render.resolution_percentage = 100
+
         # Set the cursor
         scene.cursor_location = (1,0,0)
 
