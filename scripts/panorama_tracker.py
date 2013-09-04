@@ -167,6 +167,22 @@ def calculate_orientation(scene):
     return (-orientation[0], -orientation[1], -orientation[2])
 
 
+def set_3d_cursor(scene):
+    movieclip = bpy.data.movieclips.get(scene.panorama_movieclip)
+    if not movieclip: return
+
+    settings = movieclip.panorama_settings
+
+    tracking = movieclip.tracking.objects[movieclip.tracking.active_object_index]
+    focus = tracking.tracks.get(settings.focus)
+    target = tracking.tracks.get(settings.target)
+
+    if not focus or not target: return
+
+    frame = scene.frame_current
+    return equirectangular_to_sphere(focus.markers.find_frame(frame).co)
+
+
 # ###############################
 # Operators
 # ###############################
@@ -255,7 +271,7 @@ class CLIP_OT_panorama_camera(bpy.types.Operator):
         scene.render.resolution_percentage = 100
 
         # Set the cursor
-        scene.cursor_location = (1,0,0)
+        scene.cursor_location = set_3d_cursor(scene)
 
         # Uses the current orientation as the final one
         settings.orientation = (0,0,0)
