@@ -127,6 +127,47 @@ def sphere_to_euler(vecx, vecy, vecz):
 # Main function
 # ###############################
 
+def calculate_initial_orientation(scene):
+    """return the compound orientation of the tracker + scene orientations"""
+
+    movieclip = bpy.data.movieclips.get(scene.panorama_movieclip)
+    if not movieclip: return (0,0,0)
+
+    settings = movieclip.panorama_settings
+    #orientation = settings.orientation
+
+    tracking = movieclip.tracking.objects[movieclip.tracking.active_object_index]
+    focus = tracking.tracks.get(settings.focus)
+    target = tracking.tracks.get(settings.target)
+    frame_current = scene.frame_current
+
+    if not focus or not target: return (0,0,0)
+
+    focus_marker = focus.markers.find_frame(frame_current)
+    target_marker = target.markers.find_frame(frame_current)
+
+    if not focus_marker or not target_marker: return (0,0,0)
+
+    vecx = equirectangular_to_sphere(focus_marker.co)
+    vecy = equirectangular_to_sphere(target_marker.co)
+
+    if settings.flip and 0:
+        vecz = vecx.cross(vecy)
+    else:
+        vecz = vecy.cross(vecx)
+    vecz.normalize()
+
+    # retarget y axis again
+    nvecy = vecz.cross(vecx)
+    nvecy.normalize()
+
+    # store orientation
+    orientation = sphere_to_euler(vecx, nvecy, vecz)
+    orientation = (settings.orientation.to_matrix() * orientation.to_matrix()).to_euler()
+
+    return (-orientation[0], -orientation[1], -orientation[2])
+
+
 def calculate_orientation(scene):
     """return the compound orientation of the tracker + scene orientations"""
 
@@ -151,7 +192,7 @@ def calculate_orientation(scene):
     vecx = equirectangular_to_sphere(focus_marker.co)
     vecy = equirectangular_to_sphere(target_marker.co)
 
-    if settings.flip:
+    if settings.flip and 0:
         vecz = vecx.cross(vecy)
     else:
         vecz = vecy.cross(vecx)
@@ -159,6 +200,7 @@ def calculate_orientation(scene):
 
     # retarget y axis again
     nvecy = vecz.cross(vecx)
+    nvecy.normalize()
 
     # store orientation
     orientation = sphere_to_euler(vecx, nvecy, vecz)
@@ -204,6 +246,7 @@ class CLIP_OT_panorama_camera(bpy.types.Operator):
         if not camera:
             camera = bpy.data.objects.new('Panorama Camera', bpy.data.cameras.new('Panorama Camera'))
             scene.objects.link(camera)
+            camera.data.passepartout_alpha = 1.0
 
         # force render engine to be Cycles
         scene.render.engine = 'CYCLES'
@@ -254,6 +297,11 @@ class CLIP_OT_panorama_camera(bpy.types.Operator):
 
         # Set the cursor
         scene.cursor_location = (1,0,0)
+
+        # Uses the current orientation as the final one
+        #settings.orientation = calculate_initial_orientation(scene)
+        settings.orientation = (0,0,0)
+        #settings.orientation = calculate_orientation(scene)
 
         return {'FINISHED'}
 
@@ -338,20 +386,13 @@ class CLIP_PanoramaPanel(bpy.types.Panel):
 
 
 def update_orientation(self, context):
-    """callback called every frame"""
-    scene = context.scene
-    world = scene.world
-    if not world: return
-
-    nodetree = world.node_tree
-    tex_env=nodetree.nodes.get("Panorama Environment Texture")
-    if not tex_env: return
-
-    tex_env.texture_mapping.rotation = calculate_orientation(scene)
+    """callback called when scene orientation is changed"""
+    update_panorama_orientation(context.scene)
 
 
 @persistent
 def update_panorama_orientation(scene):
+    """callback function called every frame"""
     world = scene.world
     if not world: return
 
