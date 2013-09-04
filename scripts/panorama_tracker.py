@@ -150,7 +150,7 @@ def calculate_orientation(scene):
     vecx = equirectangular_to_sphere(focus_marker.co)
     vecy = equirectangular_to_sphere(target_marker.co)
 
-    if settings.flip and 0:
+    if settings.flip:
         vecz = vecx.cross(vecy)
     else:
         vecz = vecy.cross(vecx)
