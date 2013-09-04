@@ -163,7 +163,7 @@ def _3d_to_sphere(vert, euler, radius):
 
 
 # ###############################
-# The most important function
+# Main function
 # ###############################
 
 def calculate_orientation(scene):
@@ -173,13 +173,34 @@ def calculate_orientation(scene):
     if not movieclip: return (0,0,0)
 
     settings = movieclip.panorama_settings
-    orientation = settings.orientation
+    #orientation = settings.orientation
 
     tracking = movieclip.tracking.objects[movieclip.tracking.active_object_index]
     focus = tracking.tracks.get(settings.focus)
     target = tracking.tracks.get(settings.target)
+    frame_current = scene.frame_current
 
     if not focus or not target: return (0,0,0)
+
+    focus_marker = focus.markers.find_frame(frame_current)
+    target_marker = target.markers.find_frame(frame_current)
+
+    if not focus_marker or not target_marker: return (0,0,0)
+
+    vecx = equirectangular_to_sphere(focus_marker.co)
+    vecy = equirectangular_to_sphere(target_marker.co)
+
+    if settings.flip:
+        vecz = vecx.cross(vecy)
+    else:
+        vecz = vecy.cross(vecx)
+    vecz.normalize()
+
+    # retarget y axis again
+    nvecy = vecz.cross(vecx)
+
+    # store orientation
+    orientation = sphere_to_euler(vecx, nvecy, vecz)
 
     return (-orientation[0], -orientation[1], -orientation[2])
 
@@ -197,7 +218,14 @@ class CLIP_OT_panorama_camera(bpy.types.Operator):
 
     @classmethod
     def poll(cls, context):
-        return context_clip(context)
+        if not context_clip(context):
+            return False
+
+        scene = context.scene
+        movieclip = context.edit_movieclip
+        settings = movieclip.panorama_settings
+
+        return settings.focus != "" and settings.target != ""
 
     def execute(self, context):
         scene = context.scene
@@ -206,10 +234,12 @@ class CLIP_OT_panorama_camera(bpy.types.Operator):
 
         scene.panorama_movieclip = movieclip.name
 
+        # 0) if you click twice you flip everything
+        settings.flip = not settings.flip
+
         # 1) creates a new camera if no camera is selected
-        if context.object and context.object.type == 'CAMERA' and context.object.name == 'Panorama Camera':
-            camera = context.object
-        else:
+        camera = bpy.data.objects.get('Panorama Camera')
+        if not camera:
             camera = bpy.data.objects.new('Panorama Camera', bpy.data.cameras.new('Panorama Camera'))
             scene.objects.link(camera)
 
@@ -223,7 +253,7 @@ class CLIP_OT_panorama_camera(bpy.types.Operator):
         camera.data.cycles.panorama_type = 'EQUIRECTANGULAR'
 
         camera.location[2] = 0.0
-        camera.rotation_euler = (settings.orientation.to_matrix() * Euler((pi*0.5, 0, -pi*0.5)).to_matrix()).to_euler()
+        camera.rotation_euler = Euler((pi*0.5, 0, -pi*0.5))
         scene.camera = camera
 
         imagepath = movieclip.filepath
@@ -261,7 +291,7 @@ class CLIP_OT_panorama_camera(bpy.types.Operator):
 class CLIP_OT_panorama_focus(bpy.types.Operator):
     """"""
     bl_idname = "clip.panorama_focus"
-    bl_label = "Set Focus Marker"
+    bl_label = "Set Focus Track"
     bl_description = ""
     bl_options = {'REGISTER', 'UNDO'}
 
@@ -286,7 +316,7 @@ class CLIP_OT_panorama_focus(bpy.types.Operator):
 class CLIP_OT_panorama_target(bpy.types.Operator):
     """"""
     bl_idname = "clip.panorama_target"
-    bl_label = "Set Target Marker"
+    bl_label = "Set Target Track"
     bl_description = ""
     bl_options = {'REGISTER', 'UNDO'}
 
@@ -354,7 +384,6 @@ def update_panorama_orientation(scene):
     if not tex_env: return
 
     tex_env.texture_mapping.rotation = calculate_orientation(scene)
-    debug_print(scene)
 
 
 def debug_print(scene):
@@ -384,10 +413,11 @@ class TrackingPanoramaSettings(bpy.types.PropertyGroup):
     orientation= FloatVectorProperty(name="Orientation", description="Euler rotation", subtype='EULER', default=(0.0,0.0,0.0), update=update_orientation)
     focus = StringProperty()
     target = StringProperty()
+    flip = BoolProperty(default=True)
 
 
 # ###############################
-#  Main / Register / Unregister
+#  Register / Unregister
 # ###############################
 def register():
     bpy.utils.register_module(__name__)
