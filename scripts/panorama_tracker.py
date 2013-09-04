@@ -115,60 +115,12 @@ def equirectangular_to_sphere(uv):
     return Vector((x,y,z))
 
 
-def sphere_to_equirectangular(vert):
-    """
-    convert a 3d point to uv
-    """
-    theta = asin(vert.z)
-    phi = atan2(vert.y, vert.x)
-
-    u = -0.5 * (phi / pi -1)
-    v = 0.5 * (2 * theta / pi + 1)
-
-    return u, v
-
-
 def sphere_to_euler(vecx, vecy, vecz):
     """
     convert sphere orientation vectors to euler
     """
     M = Matrix((vecx, vecy, vecz))
     return M.to_euler()
-
-
-def sphere_to_3d(vert, euler, radius):
-    """
-    given a point in the sphere and the euler inclination of the pole
-    calculatest he projected point in the plane
-    """
-    M = euler.to_matrix()
-    vert = M * vert
-    vert *= radius
-
-    origin = Vector((0,0,radius))
-    vert +=  origin
-    vector = vert - origin
-
-#    t = (0 - origin[2]) / vector[2]
-    t = - radius / (vert[2] - radius)
-
-    floor = origin + t * vector
-    return floor
-
-
-def _3d_to_sphere(vert, euler, radius):
-    """
-    given a point in the sphere and the euler inclination of the pole
-    calculatest he projected point in the plane
-    """
-    origin = Vector((0,0,radius))
-    vert -= origin
-    vert /= radius
-
-    M = Euler(euler).to_matrix().inverted()
-    vert = M * vert
-
-    return vert
 
 
 # ###############################
