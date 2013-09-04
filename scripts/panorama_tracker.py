@@ -83,6 +83,15 @@ def marker_solo_selected(cls, context):
     return len(cls._selected_tracks) == 1
 
 
+def valid_track(movieclip, name):
+    """returns if there a track with the name"""
+    if not movieclip or name == "": return False
+
+    tracking = movieclip.tracking.objects[movieclip.tracking.active_object_index]
+    track = tracking.tracks.get(name)
+
+    return track
+
 # ###############################
 #  Geometry Functions
 # ###############################
@@ -225,7 +234,7 @@ class CLIP_OT_panorama_camera(bpy.types.Operator):
         movieclip = context.edit_movieclip
         settings = movieclip.panorama_settings
 
-        return settings.focus != "" and settings.target != ""
+        return valid_track(movieclip, settings.focus) and valid_track(movieclip, settings.target)
 
     def execute(self, context):
         scene = context.scene
@@ -302,7 +311,10 @@ class CLIP_OT_panorama_focus(bpy.types.Operator):
         if not context_clip(context): return False
         if not marker_solo_selected(cls, context): return False
 
-        return True
+        movieclip = context.edit_movieclip
+        settings = movieclip.panorama_settings
+
+        return not valid_track(movieclip, settings.focus)
 
     def execute(self, context):
         scene = context.scene
@@ -327,7 +339,10 @@ class CLIP_OT_panorama_target(bpy.types.Operator):
         if not context_clip(context): return False
         if not marker_solo_selected(cls, context): return False
 
-        return True
+        movieclip = context.edit_movieclip
+        settings = movieclip.panorama_settings
+
+        return not valid_track(movieclip, settings.target)
 
     def execute(self, context):
         scene = context.scene
