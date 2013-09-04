@@ -12,8 +12,9 @@ How to use it?
  6. click on "Panorama Camera"
  7. that's all
  
- If you change your camera from Panorama to Perspective, you can see that the 3d cursor is always on the "Focus" marker
- By default the frame you are when you select "Panorama Camera" is the one that will be used as reference.
- That means if you render that frame the result you get is the same from the original footage. If you click again in "Panorama Camera" in a different frame you will get a new reference frame.
+If you change your camera from Panorama to Perspective, you can see that the 3d cursor is always on the "Focus" marker
+By default the frame you are when you select "Panorama Camera" is the one that will be used as reference.
+That means if you render that frame the result you get is the same from the original footage.
+If you click again in "Panorama Camera" in a different frame you will get a new reference frame.
  
 If your resulting panorama is upside down click on "Panorama Camera" again to fix it.
