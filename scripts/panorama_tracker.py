@@ -162,6 +162,7 @@ def calculate_orientation(scene):
 
     # store orientation
     orientation = sphere_to_euler(vecx, nvecy, vecz)
+    orientation = (settings.orientation.to_matrix() * orientation.to_matrix()).to_euler()
 
     return (-orientation[0], -orientation[1], -orientation[2])
 
