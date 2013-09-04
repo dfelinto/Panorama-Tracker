@@ -19,7 +19,7 @@
 # <pep8 compliant>
 bl_info = {
     "name": "Panorama Tracker",
-    "author": "Dalai Felinto and Sebastian Koenig",
+    "author": "Dalai Felinto",
     "version": (1, 0),
     "blender": (2, 6, 8),
     "location": "Movie Clip Editor > Tools Panel",
@@ -368,33 +368,12 @@ def update_panorama_orientation(scene):
     if not world: return
 
     nodetree = world.node_tree
+    if not nodetree.nodes: return
+
     tex_env=nodetree.nodes.get("Panorama Environment Texture")
     if not tex_env: return
 
     tex_env.texture_mapping.rotation = calculate_orientation(scene)
-
-
-def debug_print(scene):
-    """routine to print the current selected elements"""
-    import pdb
-    movieclip = bpy.data.movieclips.get(scene.panorama_movieclip)
-    if not movieclip: return
-
-    settings = movieclip.panorama_settings
-
-    tracking = movieclip.tracking.objects[movieclip.tracking.active_object_index]
-    focus = tracking.tracks.get(settings.focus)
-    target = tracking.tracks.get(settings.target)
-
-    if not focus or not target: return
-
-    frame = scene.frame_current
-    print("updating: Movieclip: {} - Focus Marker: {} - Target Marker: {}".format(scene.panorama_movieclip, focus, target))
-    print("Focus: {}\nTarget: {}\n".format( \
-            equirectangular_to_sphere(focus.markers.find_frame(frame).co), \
-            equirectangular_to_sphere(target.markers.find_frame(frame).co) \
-            ))
-    #pdb.set_trace()
 
 
 class TrackingPanoramaSettings(bpy.types.PropertyGroup):
