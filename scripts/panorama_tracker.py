@@ -186,6 +186,34 @@ def set_3d_cursor(scene):
 # ###############################
 # Operators
 # ###############################
+class CLIP_OT_panorama_reset(bpy.types.Operator):
+    """"""
+    bl_idname = "clip.panorama_reset"
+    bl_label = "Reset Tracks"
+    bl_description = "Reset the selected tracks"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    @classmethod
+    def poll(cls, context):
+        if not context_clip(context):
+            return False
+
+        scene = context.scene
+        movieclip = context.edit_movieclip
+        settings = movieclip.panorama_settings
+
+        return valid_track(movieclip, settings.focus) or valid_track(movieclip, settings.target)
+
+    def execute(self, context):
+        scene = context.scene
+        movieclip = context.edit_movieclip
+        settings = movieclip.panorama_settings
+
+        settings.focus = ""
+        settings.target = ""
+
+        return {'FINISHED'}
+
 
 class CLIP_OT_panorama_camera(bpy.types.Operator):
     """"""
@@ -354,6 +382,7 @@ class CLIP_PanoramaPanel(bpy.types.Panel):
 
         col.separator()
         col.operator("clip.panorama_camera", icon="CAMERA_DATA")
+        col.operator("clip.panorama_reset", icon="CANCEL")
 
 
 def update_orientation(self, context):
