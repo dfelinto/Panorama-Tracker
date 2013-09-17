@@ -333,7 +333,14 @@ class CLIP_OT_panorama_focus(bpy.types.Operator):
         movieclip = context.edit_movieclip
         settings = movieclip.panorama_settings
 
-        settings.focus = self._selected_tracks[0].name
+        track = self._selected_tracks[0].name
+
+        if settings.target == track:
+            self.report({'ERROR'}, "'{0}' already selected as Target Track".format(track))
+            return {'CANCELLED'}
+        else:
+            settings.focus = track
+
         return {'FINISHED'}
 
 
@@ -361,7 +368,14 @@ class CLIP_OT_panorama_target(bpy.types.Operator):
         movieclip = context.edit_movieclip
         settings = movieclip.panorama_settings
 
-        settings.target = self._selected_tracks[0].name
+        track = self._selected_tracks[0].name
+
+        if settings.focus == track:
+            self.report({'ERROR'}, "'{0}' already selected as Focus Track".format(track))
+            return {'CANCELLED'}
+        else:
+            settings.target = track
+
         return {'FINISHED'}
 
 
