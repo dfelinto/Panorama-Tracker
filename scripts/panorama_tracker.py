@@ -411,7 +411,7 @@ def update_panorama_orientation(scene):
     if not world: return
 
     nodetree = world.node_tree
-    if not nodetree.nodes: return
+    if not nodetree or not nodetree.nodes: return
 
     tex_env=nodetree.nodes.get("Panorama Environment Texture")
     if not tex_env: return
