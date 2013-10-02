@@ -40,6 +40,15 @@ from math import (sin, cos, pi, acos, asin, atan2, radians, degrees, sqrt)
 # Global Functions
 # ###############################
 
+def get_sequence_start(image):
+    """"""
+    if image.source == 'MOVIE':
+        return 1
+    else:
+        # XXX TODO
+        return 2857
+
+
 def get_image(imagepath, fake_user=True):
     """get blender image for a given path, or load one"""
     image = None
@@ -282,10 +291,11 @@ class CLIP_OT_panorama_camera(bpy.types.Operator):
             tex_env=nodetree.nodes.new('ShaderNodeTexEnvironment')
             tex_env.name = "Panorama Environment Texture"
             tex_env.location = (-200, 280)
+
         tex_env.image = image
-        tex_env.image_user.frame_offset = 0
-        tex_env.image_user.frame_start = scene.frame_start + movieclip.frame_offset
-        tex_env.image_user.frame_duration = scene.frame_end
+        tex_end.image_user.frame_start = scene.frame_start + movieclip.frame_offset
+        tex_end.image_user.frame_offset = get_sequence_start(image) - scene.frame_start
+        tex_end.image_user.frame_duration = scene.frame_end - scene.frame_start + 1
         tex_env.image_user.use_auto_refresh = True
         tex_env.image_user.use_cyclic = True
 
