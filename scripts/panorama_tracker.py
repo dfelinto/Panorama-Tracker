@@ -287,6 +287,7 @@ class CLIP_OT_panorama_camera(bpy.types.Operator):
         tex_env.image_user.use_cyclic = True
 
         # start with the mapping matching the render and current frame
+        tex_env.texture_mapping.type = 'POINT'
         tex_env.texture_mapping.rotation = (0,0,0)
 
         # Linking
