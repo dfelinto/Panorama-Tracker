@@ -298,6 +298,8 @@ class CLIP_OT_panorama_camera(bpy.types.Operator):
         scene.render.resolution_x = movieclip.size[0]
         scene.render.resolution_y = movieclip.size[1]
         scene.render.resolution_percentage = 100
+        scene.cycles.samples = 1
+        scene.cycles.max_bounces = 0
 
         # Set the cursor
         scene.cursor_location = set_3d_cursor(scene)
