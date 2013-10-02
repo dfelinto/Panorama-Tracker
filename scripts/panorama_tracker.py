@@ -293,9 +293,9 @@ class CLIP_OT_panorama_camera(bpy.types.Operator):
             tex_env.location = (-200, 280)
 
         tex_env.image = image
-        tex_end.image_user.frame_start = scene.frame_start + movieclip.frame_offset
-        tex_end.image_user.frame_offset = get_sequence_start(image) - scene.frame_start
-        tex_end.image_user.frame_duration = scene.frame_end - scene.frame_start + 1
+        tex_env.image_user.frame_start = scene.frame_start + movieclip.frame_offset
+        tex_env.image_user.frame_offset = get_sequence_start(image) - scene.frame_start
+        tex_env.image_user.frame_duration = scene.frame_end - scene.frame_start + 1
         tex_env.image_user.use_auto_refresh = True
         tex_env.image_user.use_cyclic = True
 
