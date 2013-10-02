@@ -42,11 +42,37 @@ from math import (sin, cos, pi, acos, asin, atan2, radians, degrees, sqrt)
 
 def get_sequence_start(image):
     """"""
+    import os
+
     if image.source == 'MOVIE':
         return 1
     else:
-        # XXX TODO
-        return 2857
+        filepath = image.filepath
+        file = os.path.basename(filepath)
+        name = file[:file.rfind('.')]
+
+        start = 0
+        end = -1
+
+        for i in range(len(name)):
+            d = name[-(i+1)]
+            if str.isdigit(d):
+                end = len(name) - i
+                break
+
+        if end == -1:
+            return 1
+
+        name = name[:end]
+
+        for i in range(len(name)):
+            d = name[-(i+1)]
+            if not str.isdigit(d):
+                start = len(name) - i
+                break
+
+        name = name[start:]
+        return int(name)
 
 
 def get_image(imagepath, fake_user=True):
