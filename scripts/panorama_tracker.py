@@ -25,7 +25,7 @@ bl_info = {
     "location": "Movie Clip Editor > Tools Panel",
     "description": "Help Stabilize Panorama Footage",
     "warning": "",
-    "wiki_url": "",
+    "wiki_url": "https://github.com/dfelinto/Panorama-Tracker",
     "tracker_url": "",
     "category": "Movie Tracking"}
 
