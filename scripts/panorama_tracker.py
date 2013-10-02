@@ -266,6 +266,9 @@ class CLIP_OT_panorama_camera(bpy.types.Operator):
         imagepath = movieclip.filepath
         image = get_image(imagepath)
 
+        if image.source != 'MOVIE':
+            image.source = 'SEQUENCE'
+
         if not scene.world:
             scene.world= bpy.data.worlds.new(name='Panorama')
 
