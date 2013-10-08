@@ -428,6 +428,10 @@ class CLIP_PanoramaPanel(bpy.types.Panel):
     bl_space_type = "CLIP_EDITOR"
     bl_region_type = "TOOLS"
 
+    @classmethod
+    def poll(cls, context):
+        return context.edit_movieclip
+
     def draw(self, context):
         layout = self.layout
         movieclip = context.edit_movieclip
