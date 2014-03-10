@@ -21,7 +21,7 @@ bl_info = {
     "name": "Panorama Tracker",
     "author": "Dalai Felinto",
     "version": (1, 0),
-    "blender": (2, 6, 8),
+    "blender": (2, 7, 0),
     "location": "Movie Clip Editor > Tools Panel",
     "description": "Help Stabilize Panorama Footage",
     "warning": "",
@@ -31,10 +31,31 @@ bl_info = {
 
 import bpy
 from bpy.app.handlers import persistent
-from bpy.props import FloatVectorProperty, PointerProperty, BoolProperty, StringProperty
+from bpy.props import (
+    FloatVectorProperty,
+    PointerProperty,
+    BoolProperty,
+    StringProperty,
+    EnumProperty,
+    )
 
-from mathutils import Vector, Matrix, Euler
-from math import (sin, cos, pi, acos, asin, atan2, radians, degrees, sqrt)
+from mathutils import (
+    Vector,
+    Matrix,
+    Euler,
+    )
+
+from math import (
+    sin,
+    cos,
+    pi,
+    acos,
+    asin,
+    atan2,
+    radians,
+    degrees,
+    sqrt,
+    )
 
 # ###############################
 # Global Functions
@@ -215,7 +236,11 @@ def set_3d_cursor(scene):
     if not focus or not target: return
 
     frame = scene.frame_current
-    return equirectangular_to_sphere(focus.markers.find_frame(frame).co)
+    marker = focus.markers.find_frame(frame)
+
+    if not marker: return
+
+    return equirectangular_to_sphere(marker.co)
 
 
 # ###############################
@@ -352,11 +377,15 @@ class CLIP_OT_panorama_camera(bpy.types.Operator):
         return {'FINISHED'}
 
 
-class CLIP_OT_panorama_focus(bpy.types.Operator):
+# ###############################
+#  Select Functions
+# ###############################
+
+class CLIP_OT_panorama_select(bpy.types.Operator):
     """"""
-    bl_idname = "clip.panorama_focus"
-    bl_label = "Set Focus Track"
-    bl_description = ""
+    bl_idname = "clip.panorama_select"
+    bl_label = "Set Track"
+    bl_description = "Prototype function, to be inherited"
     bl_options = {'REGISTER', 'UNDO'}
 
     _selected_tracks = []
@@ -369,7 +398,7 @@ class CLIP_OT_panorama_focus(bpy.types.Operator):
         movieclip = context.edit_movieclip
         settings = movieclip.panorama_settings
 
-        return not valid_track(movieclip, settings.focus)
+        return not cls._valid_track(movieclip, settings)
 
     def execute(self, context):
         scene = context.scene
@@ -377,17 +406,50 @@ class CLIP_OT_panorama_focus(bpy.types.Operator):
         settings = movieclip.panorama_settings
 
         track = self._selected_tracks[0].name
+        if track in (
+            settings.target,
+            settings.focus,
+            settings.x1,
+            settings.x2,
+            settings.x3,
+            settings.x4):
 
-        if settings.target == track:
-            self.report({'ERROR'}, "'{0}' already selected as Target Track".format(track))
+            self.report({'ERROR'}, "'{0}' already selected as track".format(track))
             return {'CANCELLED'}
         else:
-            settings.focus = track
+            self._set_track(settings, track)
 
         return {'FINISHED'}
 
 
-class CLIP_OT_panorama_target(bpy.types.Operator):
+class CLIP_OT_panorama_focus(CLIP_OT_panorama_select):
+    """"""
+    bl_idname = "clip.panorama_focus"
+    bl_label = "Set Focus Track"
+    bl_description = ""
+    bl_options = {'REGISTER', 'UNDO'}
+
+    _selected_tracks = []
+
+    """
+    @classmethod
+    def poll(cls, context):
+        CLIP_OT_panorama_select.poll(cls, context)
+
+    def execute(self, context):
+        CLIP_OT_panorama_select.execute(self, context)
+    """
+
+    @classmethod
+    def _valid_track(cls, movieclip, settings):
+        print('focus')
+        return valid_track(movieclip, settings.focus)
+
+    def _set_track(self, settings, track):
+        settings.focus = track
+
+
+class CLIP_OT_panorama_target(CLIP_OT_panorama_select):
     """"""
     bl_idname = "clip.panorama_target"
     bl_label = "Set Target Track"
@@ -397,30 +459,84 @@ class CLIP_OT_panorama_target(bpy.types.Operator):
     _selected_tracks = []
 
     @classmethod
-    def poll(cls, context):
-        if not context_clip(context): return False
-        if not marker_solo_selected(cls, context): return False
+    def _valid_track(cls, movieclip, settings):
+        return valid_track(movieclip, settings.target)
 
-        movieclip = context.edit_movieclip
-        settings = movieclip.panorama_settings
+    def _set_track(self, settings, track):
+        settings.target = track
 
-        return not valid_track(movieclip, settings.target)
 
-    def execute(self, context):
-        scene = context.scene
-        movieclip = context.edit_movieclip
-        settings = movieclip.panorama_settings
+class CLIP_OT_panorama_x1(CLIP_OT_panorama_select):
+    """"""
+    bl_idname = "clip.panorama_x1"
+    bl_label = "Set X1 Track"
+    bl_description = ""
+    bl_options = {'REGISTER', 'UNDO'}
 
-        track = self._selected_tracks[0].name
+    _selected_tracks = []
 
-        if settings.focus == track:
-            self.report({'ERROR'}, "'{0}' already selected as Focus Track".format(track))
-            return {'CANCELLED'}
-        else:
-            settings.target = track
+    @classmethod
+    def _valid_track(cls, movieclip, settings):
+        return valid_track(movieclip, settings.x1)
 
-        return {'FINISHED'}
+    def _set_track(self, settings, track):
+        settings.x1 = track
 
+
+class CLIP_OT_panorama_x2(CLIP_OT_panorama_select):
+    """"""
+    bl_idname = "clip.panorama_x2"
+    bl_label = "Set X2 Track"
+    bl_description = ""
+    bl_options = {'REGISTER', 'UNDO'}
+
+    _selected_tracks = []
+
+    @classmethod
+    def _valid_track(cls, movieclip, settings):
+        return valid_track(movieclip, settings.x2)
+
+    def _set_track(self, settings, track):
+        settings.x2 = track
+
+
+class CLIP_OT_panorama_x3(CLIP_OT_panorama_select):
+    """"""
+    bl_idname = "clip.panorama_x3"
+    bl_label = "Set X3 Track"
+    bl_description = ""
+    bl_options = {'REGISTER', 'UNDO'}
+
+    _selected_tracks = []
+
+    @classmethod
+    def _valid_track(cls, movieclip, settings):
+        return valid_track(movieclip, settings.x3)
+
+    def _set_track(self, settings, track):
+        settings.x3 = track
+
+
+class CLIP_OT_panorama_x4(CLIP_OT_panorama_select):
+    """"""
+    bl_idname = "clip.panorama_x4"
+    bl_label = "Set X4 Track"
+    bl_description = ""
+    bl_options = {'REGISTER', 'UNDO'}
+
+    _selected_tracks = []
+
+    @classmethod
+    def _valid_track(cls, movieclip, settings):
+        return valid_track(movieclip, settings.x4)
+
+    def _set_track(self, settings, track):
+        settings.x4 = track
+
+
+# ###############################
+#  User Interface
+# ###############################
 
 class CLIP_PanoramaPanel(bpy.types.Panel):
     ''''''
@@ -438,10 +554,28 @@ class CLIP_PanoramaPanel(bpy.types.Panel):
         settings = movieclip.panorama_settings
 
         col = layout.column(align=True)
-        col.operator("clip.panorama_focus")
-        col.operator("clip.panorama_target")
+        col.prop(settings, "method")
 
-        col.separator()
+        if settings.method == 'TWO_POINTS':
+            col.operator("clip.panorama_focus")
+            col.operator("clip.panorama_target")
+
+        elif settings.method == 'PARALLEL':
+            col.operator("clip.panorama_target", text="Set Focus Target")
+
+            row = col.row(align=True)
+            row.operator("clip.panorama_x1")
+            row.operator("clip.panorama_x2")
+
+            row = col.row(align=True)
+            row.operator("clip.panorama_x3")
+            row.operator("clip.panorama_x4")
+
+            col.separator()
+            col.prop(settings, "show_preview_axis")
+
+        col.prop(settings, "show_preview_panorama")
+
         col.operator("clip.panorama_camera", icon="CAMERA_DATA")
         col.operator("clip.panorama_reset", icon="CANCEL")
 
@@ -470,8 +604,86 @@ class TrackingPanoramaSettings(bpy.types.PropertyGroup):
     orientation= FloatVectorProperty(name="Orientation", description="Euler rotation", subtype='EULER', default=(0.0,0.0,0.0), update=update_orientation)
     focus = StringProperty()
     target = StringProperty()
+
+    x1 = StringProperty()
+    x2 = StringProperty()
+    x3 = StringProperty()
+    x4 = StringProperty()
+
     flip = BoolProperty(default=True)
 
+    show_preview_panorama = BoolProperty(
+        name="Show Corrected Panorama Preview",
+        default=False
+        )
+
+    show_preview_axis = BoolProperty(
+        name="Show Axis Preview",
+        default=False
+        )
+
+    method = EnumProperty(
+        name="Method",
+        description="The type of calibration method to use",
+        items=(("TWO_POINTS", "Focus and Target", ""),
+               ("PARALLEL", "Focus and Axis", ""),
+               ),
+        default="TWO_POINTS"
+        )
+
+
+# ###############################
+#  Drawing
+# ###############################
+
+@bpy.app.handlers.persistent
+def draw_callback_px(not_used):
+    """"""
+    import blf
+
+    scene = bpy.context.scene
+    movieclip = bpy.data.movieclips.get(scene.panorama_movieclip)
+
+    if not movieclip: return
+
+    settings = movieclip.panorama_settings
+    if (not settings.show_preview_panorama) and (not settings.show_preview_axis): return
+
+    if 1:
+        # draw some text
+        blf.position(0, 15, 30, 0)
+        blf.size(0, 20, 72)
+        blf.draw(0, "Hello Panorama World")
+
+    return
+"""
+
+    tracking = movieclip.tracking.objects[movieclip.tracking.active_object_index]
+
+    region, width, height = get_clipeditor_region()
+    if not region: return
+
+    viewport = Buffer(GL_INT, 4)
+    glGetIntegerv(GL_VIEWPORT, viewport)
+
+    # set identity matrices
+    view_setup()
+
+    frame_current = scene.frame_current
+    coordinates = get_markers_coordinates(tracking, settings, frame_current)
+    draw_rectangle(region, width, height, coordinates)
+
+    # restore opengl defaults
+    view_reset(viewport)
+
+    glColor4f(1.0, 1.0, 1.0, 1.0)
+    font_id = 0  # XXX, need to find out how best to get this.
+
+    # draw some text
+    blf.position(font_id, 15, 30, 0)
+    blf.size(font_id, 20, 72)
+    blf.draw(font_id, "Hello Word")
+"""
 
 # ###############################
 #  Register / Unregister
@@ -486,6 +698,8 @@ def register():
 
     bpy.app.handlers.frame_change_post.append(update_panorama_orientation)
 
+    bpy._panohandle = bpy.types.SpaceClipEditor.draw_handler_add(draw_callback_px, (None,), 'WINDOW', 'POST_PIXEL')
+
 
 def unregister():
     bpy.utils.unregister_module(__name__)
@@ -494,6 +708,7 @@ def unregister():
     del bpy.types.Scene.panorama_movieclip
 
     bpy.app.handlers.frame_change_post.remove(update_panorama_orientation)
+    bpy.types.SpaceClipEditor.draw_handler_remove(bpy._panohandle, 'WINDOW')
 
 
 if __name__ == '__main__':
