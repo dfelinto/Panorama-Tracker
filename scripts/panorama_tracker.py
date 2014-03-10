@@ -431,15 +431,6 @@ class CLIP_OT_panorama_focus(CLIP_OT_panorama_select):
 
     _selected_tracks = []
 
-    """
-    @classmethod
-    def poll(cls, context):
-        CLIP_OT_panorama_select.poll(cls, context)
-
-    def execute(self, context):
-        CLIP_OT_panorama_select.execute(self, context)
-    """
-
     @classmethod
     def _valid_track(cls, movieclip, settings):
         print('focus')
@@ -534,6 +525,74 @@ class CLIP_OT_panorama_x4(CLIP_OT_panorama_select):
         settings.x4 = track
 
 
+class CLIP_OT_panorama_y1(CLIP_OT_panorama_select):
+    """"""
+    bl_idname = "clip.panorama_y1"
+    bl_label = "Set Y1 Track"
+    bl_description = ""
+    bl_options = {'REGISTER', 'UNDO'}
+
+    _selected_tracks = []
+
+    @classmethod
+    def _valid_track(cls, movieclip, settings):
+        return valid_track(movieclip, settings.y1)
+
+    def _set_track(self, settings, track):
+        settings.y1 = track
+
+
+class CLIP_OT_panorama_y2(CLIP_OT_panorama_select):
+    """"""
+    bl_idname = "clip.panorama_y2"
+    bl_label = "Set Y2 Track"
+    bl_description = ""
+    bl_options = {'REGISTER', 'UNDO'}
+
+    _selected_tracks = []
+
+    @classmethod
+    def _valid_track(cls, movieclip, settings):
+        return valid_track(movieclip, settings.y2)
+
+    def _set_track(self, settings, track):
+        settings.y2 = track
+
+
+class CLIP_OT_panorama_y3(CLIP_OT_panorama_select):
+    """"""
+    bl_idname = "clip.panorama_y3"
+    bl_label = "Set Y3 Track"
+    bl_description = ""
+    bl_options = {'REGISTER', 'UNDO'}
+
+    _selected_tracks = []
+
+    @classmethod
+    def _valid_track(cls, movieclip, settings):
+        return valid_track(movieclip, settings.y3)
+
+    def _set_track(self, settings, track):
+        settings.y3 = track
+
+
+class CLIP_OT_panorama_y4(CLIP_OT_panorama_select):
+    """"""
+    bl_idname = "clip.panorama_y4"
+    bl_label = "Set Y4 Track"
+    bl_description = ""
+    bl_options = {'REGISTER', 'UNDO'}
+
+    _selected_tracks = []
+
+    @classmethod
+    def _valid_track(cls, movieclip, settings):
+        return valid_track(movieclip, settings.y4)
+
+    def _set_track(self, settings, track):
+        settings.y4 = track
+
+
 # ###############################
 #  User Interface
 # ###############################
@@ -563,6 +622,7 @@ class CLIP_PanoramaPanel(bpy.types.Panel):
         elif settings.method == 'PARALLEL':
             col.operator("clip.panorama_target", text="Set Focus Target")
 
+            col.separator()
             row = col.row(align=True)
             row.operator("clip.panorama_x1")
             row.operator("clip.panorama_x2")
@@ -570,6 +630,15 @@ class CLIP_PanoramaPanel(bpy.types.Panel):
             row = col.row(align=True)
             row.operator("clip.panorama_x3")
             row.operator("clip.panorama_x4")
+
+            col.separator()
+            row = col.row(align=True)
+            row.operator("clip.panorama_y1")
+            row.operator("clip.panorama_y2")
+
+            row = col.row(align=True)
+            row.operator("clip.panorama_y3")
+            row.operator("clip.panorama_y4")
 
             col.separator()
             col.prop(settings, "show_preview_axis")
@@ -609,6 +678,11 @@ class TrackingPanoramaSettings(bpy.types.PropertyGroup):
     x2 = StringProperty()
     x3 = StringProperty()
     x4 = StringProperty()
+
+    y1 = StringProperty()
+    y2 = StringProperty()
+    y3 = StringProperty()
+    y4 = StringProperty()
 
     flip = BoolProperty(default=True)
 
