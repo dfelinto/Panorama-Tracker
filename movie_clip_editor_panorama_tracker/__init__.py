@@ -31,6 +31,7 @@ bl_info = {
 
 
 from . import core
+from . import preview
 from . import ui
 
 
@@ -39,11 +40,13 @@ from . import ui
 # ###############################
 def register():
     core.register()
+    preview.register()
     ui.register()
 
 
 def unregister():
     core.unregister()
+    preview.unregister()
     ui.unregister()
 
 
