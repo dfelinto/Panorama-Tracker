@@ -17,24 +17,35 @@
 #======================= END GPL LICENSE BLOCK ========================
 
 # <pep8 compliant>
-bl_info = {
-    "name": "Panorama Tracker",
-    "author": "Dalai Felinto",
-    "version": (1, 0),
-    "blender": (2, 6, 8),
-    "location": "Movie Clip Editor > Tools Panel",
-    "description": "Help Stabilize Panorama Footage",
-    "warning": "",
-    "wiki_url": "https://github.com/dfelinto/Panorama-Tracker",
-    "tracker_url": "",
-    "category": "Movie Tracking"}
 
 import bpy
-from bpy.app.handlers import persistent
-from bpy.props import FloatVectorProperty, PointerProperty, BoolProperty, StringProperty
 
-from mathutils import Vector, Matrix, Euler
-from math import (sin, cos, pi, acos, asin, atan2, radians, degrees, sqrt)
+from bpy.app.handlers import persistent
+
+from bpy.props import (
+        FloatVectorProperty,
+        PointerProperty,
+        BoolProperty,
+        StringProperty,
+        )
+
+from mathutils import (
+        Vector,
+        Matrix,
+        Euler,
+        )
+
+from math import (
+        sin,
+        cos,
+        pi,
+        acos,
+        asin,
+        atan2,
+        radians,
+        degrees,
+        sqrt,
+        )
 
 # ###############################
 # Global Functions
@@ -221,6 +232,7 @@ def set_3d_cursor(scene):
 # ###############################
 # Operators
 # ###############################
+
 class CLIP_OT_panorama_reset(bpy.types.Operator):
     """"""
     bl_idname = "clip.panorama_reset"
@@ -422,30 +434,6 @@ class CLIP_OT_panorama_target(bpy.types.Operator):
         return {'FINISHED'}
 
 
-class CLIP_PanoramaPanel(bpy.types.Panel):
-    ''''''
-    bl_label = "Panorama"
-    bl_space_type = "CLIP_EDITOR"
-    bl_region_type = "TOOLS"
-
-    @classmethod
-    def poll(cls, context):
-        return context.edit_movieclip
-
-    def draw(self, context):
-        layout = self.layout
-        movieclip = context.edit_movieclip
-        settings = movieclip.panorama_settings
-
-        col = layout.column(align=True)
-        col.operator("clip.panorama_focus")
-        col.operator("clip.panorama_target")
-
-        col.separator()
-        col.operator("clip.panorama_camera", icon="CAMERA_DATA")
-        col.operator("clip.panorama_reset", icon="CANCEL")
-
-
 def update_orientation(self, context):
     """callback called when scene orientation is changed"""
     update_panorama_orientation(context.scene)
@@ -466,6 +454,10 @@ def update_panorama_orientation(scene):
     tex_env.texture_mapping.rotation = calculate_orientation(scene)
 
 
+# ###############################
+#  Properties
+# ###############################
+
 class TrackingPanoramaSettings(bpy.types.PropertyGroup):
     orientation= FloatVectorProperty(name="Orientation", description="Euler rotation", subtype='EULER', default=(0.0,0.0,0.0), update=update_orientation)
     focus = StringProperty()
@@ -476,8 +468,13 @@ class TrackingPanoramaSettings(bpy.types.PropertyGroup):
 # ###############################
 #  Register / Unregister
 # ###############################
+
 def register():
-    bpy.utils.register_module(__name__)
+    bpy.utils.register_class(TrackingPanoramaSettings)
+    bpy.utils.register_class(CLIP_OT_panorama_reset)
+    bpy.utils.register_class(CLIP_OT_panorama_target)
+    bpy.utils.register_class(CLIP_OT_panorama_camera)
+    bpy.utils.register_class(CLIP_OT_panorama_focus)
 
     bpy.types.MovieClip.panorama_settings = PointerProperty(
             type=TrackingPanoramaSettings, name="Tracking Panorama Settings", description="")
@@ -488,13 +485,14 @@ def register():
 
 
 def unregister():
-    bpy.utils.unregister_module(__name__)
 
     del bpy.types.MovieClip.panorama_settings
     del bpy.types.Scene.panorama_movieclip
 
     bpy.app.handlers.frame_change_post.remove(update_panorama_orientation)
 
-
-if __name__ == '__main__':
-    register()
+    bpy.utils.unregister_class(CLIP_OT_panorama_focus)
+    bpy.utils.unregister_class(CLIP_OT_panorama_camera)
+    bpy.utils.unregister_class(CLIP_OT_panorama_target)
+    bpy.utils.unregister_class(CLIP_OT_panorama_unreset)
+    bpy.utils.unregister_class(TrackingPanoramaSettings)
