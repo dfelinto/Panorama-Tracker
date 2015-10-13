@@ -49,6 +49,9 @@ class CLIP_PanoramaPanel(bpy.types.Panel):
         col.operator("clip.panorama_camera", icon="CAMERA_DATA")
         col.operator("clip.panorama_reset", icon="CANCEL")
 
+        col.separator()
+        col.prop(settings, "show_preview")
+
 
 # ###############################
 #  Register / Unregister

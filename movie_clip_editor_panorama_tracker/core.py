@@ -47,6 +47,8 @@ from math import (
         sqrt,
         )
 
+from .preview import show_preview_update
+
 # ###############################
 # Global Functions
 # ###############################
@@ -442,6 +444,14 @@ def update_orientation(self, context):
 @persistent
 def update_panorama_orientation(scene):
     """callback function called every frame"""
+    pg = bpy.panorama_globals
+    is_enabled = pg.is_enabled
+    orientation = None
+
+    if is_enabled:
+        orientation = calculate_orientation(scene)
+        pg.orientation = Euler(orientation).to_matrix().inverted().to_4x4()
+
     world = scene.world
     if not world: return
 
@@ -451,7 +461,10 @@ def update_panorama_orientation(scene):
     tex_env=nodetree.nodes.get("Panorama Environment Texture")
     if not tex_env: return
 
-    tex_env.texture_mapping.rotation = calculate_orientation(scene)
+    if orientation == None:
+        orientation = calculate_orientation(scene)
+
+    tex_env.texture_mapping.rotation = orientation
 
 
 # ###############################
@@ -463,6 +476,7 @@ class TrackingPanoramaSettings(bpy.types.PropertyGroup):
     focus = StringProperty()
     target = StringProperty()
     flip = BoolProperty(default=True)
+    show_preview = BoolProperty(default=False, name="Show Preview", update=show_preview_update)
 
 
 # ###############################
