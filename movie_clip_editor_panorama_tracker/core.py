@@ -47,6 +47,8 @@ from math import (
         sqrt,
         )
 
+from .preview import show_preview_update
+
 # ###############################
 # Global Functions
 # ###############################
@@ -463,7 +465,7 @@ class TrackingPanoramaSettings(bpy.types.PropertyGroup):
     focus = StringProperty()
     target = StringProperty()
     flip = BoolProperty(default=True)
-    show_preview = BoolProperty(default=False, name="Show Preview")
+    show_preview = BoolProperty(default=False, name="Show Preview", update=show_preview_update)
 
 
 # ###############################

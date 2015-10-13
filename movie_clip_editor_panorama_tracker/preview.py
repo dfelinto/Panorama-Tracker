@@ -23,6 +23,11 @@ import bpy
 from bpy.app.handlers import persistent
 
 from .opengl_helper import (
+        calculate_image_size,
+        create_image,
+        create_shader,
+        delete_image,
+        update_image,
         view_reset,
         view_setup,
         )
@@ -31,9 +36,60 @@ from bgl import *
 
 TODO = False
 
+
+# ###############################
+# Callback
+# ###############################
+
+def show_preview_update(settings, context):
+    movieclip = context.edit_movieclip
+    pg = bpy.panorama_globals
+
+    if settings.show_preview:
+        panorama_setup(pg, movieclip)
+
+    else:
+        panorama_reset(pg)
+
+
 # ###############################
 # Utils
 # ###############################
+
+def resize(panorama_globals, movieclip, viewport):
+    """we can run every frame or only when width/height change"""
+    pg = bpy.panorama_globals
+
+    width = viewport[2]
+    height = viewport[3]
+
+    # power of two dimensions
+    buffer_width, buffer_height = calculate_image_size(width, height)
+
+    if (buffer_width == pg.buffer_width) and \
+       (buffer_height == pg.buffer_height):
+        return
+
+    # remove old textures
+    panorama_reset(pg)
+    pg.is_enabled = True
+
+    pg.buffer_width = width
+    pg.buffer_height = height
+
+    # image to dump screen buffer
+    pg.color_id = create_image(pg.buffer_width, pg.buffer_height, GL_RGBA)
+
+
+def get_glsl_shader(shader_file):
+    import os
+    folderpath = os.path.dirname(os.path.abspath(__file__))
+    filepath = os.path.join(folderpath, shader_file)
+    f = open(filepath, 'r')
+    data = f.read()
+    f.close()
+    return data
+
 
 def view_setup():
     glMatrixMode(GL_PROJECTION)
@@ -65,7 +121,10 @@ def get_markers_coordinates(tracking, settings, frame=1):
     return coordinates
 
 
-def draw_rectangle(region, width, height, coordinates=((1,1),(0,1),(0,0),(1,0))):
+def draw_rectangle(region, width, height):
+    coordinates=((1,1),(0,1),(0,0),(1,0))
+    texco = [(1, 1), (0, 1), (0, 0), (1,0)]
+
     verco = []
     for x,y in coordinates:
         co = list(region.view2d.view_to_region(x,y, False))
@@ -74,13 +133,13 @@ def draw_rectangle(region, width, height, coordinates=((1,1),(0,1),(0,0),(1,0)))
         verco.append(co)
 
     glPolygonMode(GL_FRONT_AND_BACK , GL_FILL)
-    glEnable(GL_BLEND)
     glBegin(GL_QUADS)
+
     for i in range(4):
-        glColor4f(1.0, 1.0, 0.0, 0.5)
+        glColor4f(1.0, 1.0, 1.0, 0.0)
+        glTexCoord3f(texco[i][0], texco[i][1], 0.0)
         glVertex2f(verco[i][0], verco[i][1])
     glEnd()
-    glDisable(GL_BLEND)
 
 
 def get_clipeditor_region():
@@ -88,18 +147,81 @@ def get_clipeditor_region():
         if area.type == 'CLIP_EDITOR':
             for region in area.regions:
                 if region.type == 'WINDOW':
-                    return region, region.width, region.height
 
-    return None, 0, 0
+                    bot = region.view2d.view_to_region(0.0, 0.0)
+                    top = region.view2d.view_to_region(1.0, 1.0)
+
+                    if bot[0] == 12000 or top[0] == 12000:
+                        return None, [0,0,0,0]
+
+                    width = top[0] - bot[0]
+                    height = top[1] - bot[1]
+
+                    return region, [bot[0], bot[1], width, height]
+
+    return None, [0,0,0,0]
+
+
+# ###############################
+# Setup and Reset
+# ###############################
+
+def panorama_setup(panorama_globals, movieclip):
+    pg = panorama_globals
+
+    if pg.is_enabled:
+        return False
+
+    pg.is_enabled = True
+
+    region, viewport = get_clipeditor_region()
+
+    # create initial image
+    resize(pg, movieclip, viewport)
+
+    # glsl shaders
+    fragment_shader = get_glsl_shader('preview.fp')
+    pg.program = create_shader(fragment_shader, type=GL_FRAGMENT_SHADER)
+
+
+def panorama_reset(panorama_globals):
+    pg = panorama_globals
+
+    if not pg.is_enabled:
+        return False
+
+    pg.is_enabled = False
+
+    if pg.color_id:
+        delete_image(pg.color_id)
+
+    TODO # delete shader
 
 
 # ###############################
 # Main Drawing Routine
 # ###############################
 
+def setup_uniforms(program, color_id, focus, target):
+    uniform = glGetUniformLocation(program, "color_buffer")
+    glActiveTexture(GL_TEXTURE0)
+    glBindTexture(GL_TEXTURE_2D, color_id)
+    if uniform != -1: glUniform1i(uniform, 0)
+
+    uniform = glGetUniformLocation(program, "focus")
+    if uniform != -1: glUniform2f(uniform, focus[0], focus[1])
+
+    uniform = glGetUniformLocation(program, "target")
+    if uniform != -1: glUniform2f(uniform, target[0], target[1])
+
+
 @persistent
 def draw_panorama_callback_px(not_used):
     """"""
+    pg = bpy.panorama_globals
+
+    if not pg.is_enabled: return
+
     movieclip = bpy.context.edit_movieclip
     scene = bpy.context.scene
 
@@ -110,23 +232,50 @@ def draw_panorama_callback_px(not_used):
 
     tracking = movieclip.tracking.objects[movieclip.tracking.active_object_index]
 
-    region, width, height = get_clipeditor_region()
+    region, viewport = get_clipeditor_region()
     if not region: return
 
-    viewport = Buffer(GL_INT, 4)
-    glGetIntegerv(GL_VIEWPORT, viewport)
+    resize(pg, movieclip, viewport)
+
+    # opengl part
+
+    act_tex = Buffer(GL_INT, 1)
+    glGetIntegerv(GL_TEXTURE_BINDING_2D, act_tex)
+
+    # add window viewport
+
+    winviewport = Buffer(GL_INT, 4)
+    glGetIntegerv(GL_VIEWPORT, winviewport)
+
+    viewport[0] += winviewport[0]
+    viewport[1] += winviewport[1]
+
+    # dump buffer in texture
+    update_image(pg.color_id, viewport, GL_RGBA, GL_TEXTURE0)
+
+    # run screenshader
+    glEnable(GL_DEPTH_TEST)
+    glDepthFunc(GL_LESS)
 
     # set identity matrices
     view_setup()
 
+    glUseProgram(pg.program)
+
+    # update uniforms
     frame_current = scene.frame_current
-    #coordinates = get_markers_coordinates(tracking, settings, frame_current)
-    coordinates=((1,1),(0,1),(0,0),(1,0))
-    draw_rectangle(region, width, height, coordinates)
+    coordinates = get_markers_coordinates(tracking, settings, frame_current)
+    setup_uniforms(pg.program, pg.color_id, coordinates[0], coordinates[1])
+
+    draw_rectangle(region, region.width, region.height)
 
     # restore opengl defaults
     view_reset()
 
+    glUseProgram(0)
+    glActiveTexture(act_tex[0])
+    glBindTexture(GL_TEXTURE_2D, 0)
+    glDisable(GL_DEPTH_TEST)
     """
     import blf
 
@@ -144,7 +293,12 @@ def draw_panorama_callback_px(not_used):
 # ############################################################
 
 class PanoramaGlobals:
+    is_enabled = False
     handle = None
+    buffer_width = -1
+    buffer_height = -1
+    color_id = -1
+    program = -1
 
 
 # ############################################################
@@ -153,12 +307,12 @@ class PanoramaGlobals:
 
 @persistent
 def panorama_tracker_load_pre(dummy):
-    TODO # cleanup
+    panorama_reset(bpy.panorama_globals)
 
 
 @persistent
 def panorama_tracker_load_post(dummy):
-    TODO # cleanup
+    panorama_reset(bpy.panorama_globals)
 
 
 # ###############################
