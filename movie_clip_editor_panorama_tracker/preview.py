@@ -139,6 +139,13 @@ def draw_panorama_callback_px(not_used):
     blf.draw(font_id, "Fooooood")
     """
 
+# ############################################################
+# Globals
+# ############################################################
+
+class PanoramaGlobals:
+    handle = None
+
 
 # ############################################################
 # Callbacks
@@ -146,12 +153,12 @@ def draw_panorama_callback_px(not_used):
 
 @persistent
 def panorama_tracker_load_pre(dummy):
-    # TODO cleanup
+    TODO # cleanup
 
 
 @persistent
 def panorama_tracker_load_post(dummy):
-    # TODO cleanup
+    TODO # cleanup
 
 
 # ###############################
@@ -161,11 +168,12 @@ def register():
     bpy.app.handlers.load_pre.append(panorama_tracker_load_pre)
     bpy.app.handlers.load_pre.append(panorama_tracker_load_post)
 
-    bpy._panorama_handle = bpy.types.SpaceClipEditor.draw_handler_add(draw_panorama_callback_px, (None,), 'WINDOW', 'POST_PIXEL')
+    bpy.panorama_globals = PanoramaGlobals()
+    bpy.panorama_globals.handler = bpy.types.SpaceClipEditor.draw_handler_add(draw_panorama_callback_px, (None,), 'WINDOW', 'POST_PIXEL')
 
 
 def unregister():
     bpy.app.handlers.load_pre.remove(panorama_tracker_load_pre)
     bpy.app.handlers.load_pre.remove(panorama_tracker_load_post)
 
-    bpy.types.SpaceClipEditor.draw_handler_remove(bpy._panorama_handle, 'WINDOW')
+    bpy.types.SpaceClipEditor.draw_handler_remove(bpy.panorama_globals.handler, 'WINDOW')

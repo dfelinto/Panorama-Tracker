@@ -463,7 +463,7 @@ class TrackingPanoramaSettings(bpy.types.PropertyGroup):
     focus = StringProperty()
     target = StringProperty()
     flip = BoolProperty(default=True)
-    show_preview = BoolProperty(default=False, name="")
+    show_preview = BoolProperty(default=False, name="Show Preview")
 
 
 # ###############################
