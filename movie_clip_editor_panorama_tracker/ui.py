@@ -49,15 +49,8 @@ class CLIP_PanoramaPanel(bpy.types.Panel):
         col.operator("clip.panorama_camera", icon="CAMERA_DATA")
         col.operator("clip.panorama_reset", icon="CANCEL")
 
-        wm = context.window_manager
-        preview_enabled = wm.panorama_tracker_preview
-
-        col = layout.column()
-
-        if not preview_enabled:
-            col.operator("clip.panorama_preview", text="Preview", icon="PLAY").action='ENABLE'
-        else:
-            col.operator("clip.panorama_preview", text="Preview", icon="X").action='DISABLE'
+        col.separator()
+        col.prop(settings, "show_preview")
 
 
 # ###############################
