@@ -26,3 +26,35 @@ http://www.blendernetwork.org/blog/success-story-by-sebastian-koenig
 
 You can also access the video directly via:
 https://vimeo.com/75889844
+
+Installation
+============
+In a terminal paste the following commands:
+```
+$ git clone https://github.com/dfelinto/Panorama-Tracker.git
+$ cd Panorama-Tracker
+$ zip -x __pycache__ -x */.git* -r9 movie_clip_editor_panorama_tracker.zip movie_clip_editor_panorama_tracker
+```
+
+Now install the movie_clip_editor_panorama_tracker.zip in Blender as an addon.
+
+Update
+======
+In a terminal paste the following commands:
+```
+$ git pull origin
+```
+
+Followed by the rsync command for your OS:
+
+Mac:
+```
+$ rsync -rv --exclude=.DS_Store --exclude=.git --exclude=*.blend1 --exclude=*.blend2 --exclude=*.swp --exclude=*.swo movie_clip_editor_panorama_tracker ~/Library/Application\ Support/Blender/2.76/scripts/addons/
+```
+
+Linux:
+```
+$ rsync -rv --exclude=.DS_Store --exclude=.git --exclude=*.blend1 --exclude=*.blend2 --exclude=*.swp --exclude=*.swo movie_clip_editor_panorama_tracker ~/.config/blender/2.76/scripts/addons/
+```
+
+Optionally, instead of rsync you can generate a new ``.zip``, remove the previous version of the addon and re-install it.
