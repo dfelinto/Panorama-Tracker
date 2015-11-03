@@ -42,12 +42,7 @@ class CLIP_PT_panorama(bpy.types.Panel):
         settings = movieclip.panorama_settings
 
         col = layout.column(align=True)
-        col.operator("clip.panorama_focus")
-        col.operator("clip.panorama_target")
-
-        col.separator()
         col.operator("clip.panorama_camera", icon="CAMERA_DATA")
-        col.operator("clip.panorama_reset", icon="CANCEL")
 
         col.separator()
         col.prop(settings, "show_preview")
@@ -80,14 +75,26 @@ class CLIP_PT_panorama_markers(bpy.types.Panel):
         if len(mm.markers):
             marker = mm.markers[mm.active_marker_index]
             col = layout.column()
-            col.prop(marker, "name")
+            #col.prop(marker, "name")
 
             frame_smpte = bpy.utils.smpte_from_frame(marker.frame)
             col.label(text="Frame: {0}".format(frame_smpte))
 
+            col.separator()
+            box = col.box()
+            box.operator("clip.panorama_focus")
+            box.operator("clip.panorama_target")
+            box.operator("clip.panorama_reset", icon="CANCEL")
+
+            col.separator()
+            col.operator("clip.panorama_flip")
+
+
+
 # ###############################
 #  Register / Unregister
 # ###############################
+
 def register():
     bpy.utils.register_class(CLIP_PT_panorama)
     bpy.utils.register_class(CLIP_PT_panorama_markers)

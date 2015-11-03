@@ -23,9 +23,10 @@ import bpy
 from bpy.app.handlers import persistent
 
 from bpy.props import (
+        BoolProperty,
+        CollectionProperty,
         FloatVectorProperty,
         PointerProperty,
-        BoolProperty,
         StringProperty,
         )
 
@@ -182,10 +183,13 @@ def calculate_orientation(scene):
     if not movieclip: return (0,0,0)
 
     settings = movieclip.panorama_settings
+    marker = get_marker(scene, movieclip, create=False, current_time=True)
+
+    if not marker: return (0,0,0)
 
     tracking = movieclip.tracking.objects[movieclip.tracking.active_object_index]
-    focus = tracking.tracks.get(settings.focus)
-    target = tracking.tracks.get(settings.target)
+    focus = tracking.tracks.get(marker.focus)
+    target = tracking.tracks.get(marker.target)
     frame_current = scene.frame_current
 
     if not focus or not target: return (0,0,0)
@@ -198,7 +202,7 @@ def calculate_orientation(scene):
     vecx = equirectangular_to_sphere(focus_marker.co)
     vecy = equirectangular_to_sphere(target_marker.co)
 
-    if settings.flip:
+    if marker.use_flip:
         vecz = vecx.cross(vecy)
     else:
         vecz = vecy.cross(vecx)
@@ -219,11 +223,11 @@ def set_3d_cursor(scene):
     movieclip = bpy.data.movieclips.get(scene.panorama_movieclip)
     if not movieclip: return
 
-    settings = movieclip.panorama_settings
+    marker = get_marker(scene, movieclip, create=False)
 
     tracking = movieclip.tracking.objects[movieclip.tracking.active_object_index]
-    focus = tracking.tracks.get(settings.focus)
-    target = tracking.tracks.get(settings.target)
+    focus = tracking.tracks.get(marker.focus)
+    target = tracking.tracks.get(marker.target)
 
     if not focus or not target: return
 
@@ -247,19 +251,19 @@ class CLIP_OT_panorama_reset(bpy.types.Operator):
         if not context_clip(context):
             return False
 
-        scene = context.scene
         movieclip = context.edit_movieclip
-        settings = movieclip.panorama_settings
+        marker = get_marker(context.scene, movieclip, create=False)
 
-        return valid_track(movieclip, settings.focus) or valid_track(movieclip, settings.target)
+        return marker and (valid_track(movieclip, marker.focus) or valid_track(movieclip, marker.target))
 
     def execute(self, context):
         scene = context.scene
         movieclip = context.edit_movieclip
-        settings = movieclip.panorama_settings
+        marker = get_marker(context.scene, movieclip, create=False)
 
-        settings.focus = ""
-        settings.target = ""
+        if marker:
+            marker.focus = ""
+            marker.target = ""
 
         return {'FINISHED'}
 
@@ -276,11 +280,10 @@ class CLIP_OT_panorama_camera(bpy.types.Operator):
         if not context_clip(context):
             return False
 
-        scene = context.scene
         movieclip = context.edit_movieclip
-        settings = movieclip.panorama_settings
+        marker = get_marker(context.scene, movieclip, create=False)
 
-        return valid_track(movieclip, settings.focus) and valid_track(movieclip, settings.target)
+        return marker and valid_track(movieclip, marker.focus) and valid_track(movieclip, marker.target)
 
     def execute(self, context):
         scene = context.scene
@@ -288,9 +291,6 @@ class CLIP_OT_panorama_camera(bpy.types.Operator):
         settings = movieclip.panorama_settings
 
         scene.panorama_movieclip = movieclip.name
-
-        # 0) if you click twice you flip everything
-        settings.flip = not settings.flip
 
         # 1) creates a new camera if no camera is selected
         camera = bpy.data.objects.get('Panorama Camera')
@@ -381,22 +381,21 @@ class CLIP_OT_panorama_focus(bpy.types.Operator):
         if not marker_solo_selected(cls, context): return False
 
         movieclip = context.edit_movieclip
-        settings = movieclip.panorama_settings
+        marker = get_marker(context.scene, movieclip, create=False)
 
-        return not valid_track(movieclip, settings.focus)
+        return (not marker) or (not valid_track(movieclip, marker.focus))
 
     def execute(self, context):
-        scene = context.scene
         movieclip = context.edit_movieclip
-        settings = movieclip.panorama_settings
+        marker = get_marker(context.scene, movieclip)
 
         track = self._selected_tracks[0].name
 
-        if settings.target == track:
+        if marker.target == track:
             self.report({'ERROR'}, "'{0}' already selected as Target Track".format(track))
             return {'CANCELLED'}
         else:
-            settings.focus = track
+            marker.focus = track
 
         return {'FINISHED'}
 
@@ -416,24 +415,87 @@ class CLIP_OT_panorama_target(bpy.types.Operator):
         if not marker_solo_selected(cls, context): return False
 
         movieclip = context.edit_movieclip
-        settings = movieclip.panorama_settings
+        marker = get_marker(context.scene, movieclip, create=False)
 
-        return not valid_track(movieclip, settings.target)
+        return (not marker) or (not valid_track(movieclip, marker.target))
+
+    def execute(self, context):
+        movieclip = context.edit_movieclip
+        marker = get_marker(context.scene, movieclip)
+
+        track = self._selected_tracks[0].name
+
+        if marker.focus == track:
+            self.report({'ERROR'}, "'{0}' already selected as Focus Track".format(track))
+            return {'CANCELLED'}
+        else:
+            marker.target = track
+
+        return {'FINISHED'}
+
+
+class CLIP_OT_panorama_flip(bpy.types.Operator):
+    """"""
+    bl_idname = "clip.panorama_flip"
+    bl_label = "Flip Zenith/Nadir"
+    bl_description = ""
+    bl_options = {'REGISTER', 'UNDO'}
+
+    @classmethod
+    def poll(cls, context):
+        if not context_clip(context):
+            return False
+
+        movieclip = context.edit_movieclip
+        marker = get_marker(context.scene, movieclip, create=False)
+
+        return marker and valid_track(movieclip, marker.focus) and valid_track(movieclip, marker.target)
 
     def execute(self, context):
         scene = context.scene
         movieclip = context.edit_movieclip
-        settings = movieclip.panorama_settings
+        marker = get_marker(scene, movieclip)
 
-        track = self._selected_tracks[0].name
+        marker.use_flip = not marker.use_flip
 
-        if settings.focus == track:
-            self.report({'ERROR'}, "'{0}' already selected as Focus Track".format(track))
-            return {'CANCELLED'}
-        else:
-            settings.target = track
-
+        update_panorama_orientation(scene)
+        context.area.tag_redraw()
         return {'FINISHED'}
+
+
+def get_marker(scene, movieclip, create=True, current_time=False):
+    """create a marker if non existent"""
+    mm = scene.panorama_markers_manager
+
+    if not len(mm.markers):
+        return None
+
+    if current_time:
+        frame_current = scene.frame_current
+        frame_previous = 0
+        scene_marker = mm.markers[mm.active_marker_index]
+
+        for marker in mm.markers:
+            frame = marker.frame
+
+            if frame <= frame_current and \
+               frame > frame_previous:
+                frame_previous = frame
+                scene_marker = marker
+
+    else:
+        scene_marker = mm.markers[mm.active_marker_index]
+
+    frame = str(scene_marker.frame)
+
+    settings = movieclip.panorama_settings
+    marker = settings.markers.get(frame)
+
+    if create and not marker:
+        marker = settings.markers.add()
+        marker.name = frame
+
+    return marker
 
 
 def update_orientation(self, context):
@@ -485,12 +547,17 @@ def mapping_node_order_flip(orientation):
 #  Properties
 # ###############################
 
-class TrackingPanoramaSettings(bpy.types.PropertyGroup):
-    orientation= FloatVectorProperty(name="Orientation", description="Euler rotation", subtype='EULER', default=(0.0,0.0,0.0), update=update_orientation)
+class TrackingPanoramaMarkerInfo(bpy.types.PropertyGroup):
+    name = StringProperty()
+    use_flip = BoolProperty()
     focus = StringProperty()
     target = StringProperty()
-    flip = BoolProperty(default=True)
+
+
+class TrackingPanoramaSettings(bpy.types.PropertyGroup):
+    orientation= FloatVectorProperty(name="Orientation", description="Euler rotation", subtype='EULER', default=(0.0,0.0,0.0), update=update_orientation)
     show_preview = BoolProperty(default=False, name="Show Preview", update=show_preview_update)
+    markers = CollectionProperty(type=TrackingPanoramaMarkerInfo)
 
 
 # ###############################
@@ -498,11 +565,13 @@ class TrackingPanoramaSettings(bpy.types.PropertyGroup):
 # ###############################
 
 def register():
+    bpy.utils.register_class(TrackingPanoramaMarkerInfo)
     bpy.utils.register_class(TrackingPanoramaSettings)
     bpy.utils.register_class(CLIP_OT_panorama_reset)
     bpy.utils.register_class(CLIP_OT_panorama_target)
     bpy.utils.register_class(CLIP_OT_panorama_camera)
     bpy.utils.register_class(CLIP_OT_panorama_focus)
+    bpy.utils.register_class(CLIP_OT_panorama_flip)
 
     bpy.types.MovieClip.panorama_settings = PointerProperty(
             type=TrackingPanoramaSettings, name="Tracking Panorama Settings", description="")
@@ -519,8 +588,10 @@ def unregister():
 
     bpy.app.handlers.frame_change_post.remove(update_panorama_orientation)
 
+    bpy.utils.unregister_class(CLIP_OT_panorama_flip)
     bpy.utils.unregister_class(CLIP_OT_panorama_focus)
     bpy.utils.unregister_class(CLIP_OT_panorama_camera)
     bpy.utils.unregister_class(CLIP_OT_panorama_target)
     bpy.utils.unregister_class(CLIP_OT_panorama_unreset)
     bpy.utils.unregister_class(TrackingPanoramaSettings)
+    bpy.utils.unregister_class(TrackingPanoramaMarkerInfo)

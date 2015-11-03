@@ -1,11 +1,12 @@
 import bpy
 
 from bpy.props import (
-    StringProperty,
-    IntProperty,
-    PointerProperty,
-    CollectionProperty,
-    )
+        BoolProperty,
+        CollectionProperty,
+        IntProperty,
+        PointerProperty,
+        StringProperty,
+        )
 
 
 # ###############################
@@ -91,7 +92,6 @@ class CLIP_OT_panorama_marker_del(bpy.types.Operator):
         for timeline_marker in scene.timeline_markers:
             if timeline_marker.frame == frame:
                 scene.timeline_markers.remove(timeline_marker)
-                # TODO: remove movieclip markers
                 break
 
 
@@ -100,6 +100,13 @@ class CLIP_OT_panorama_marker_del(bpy.types.Operator):
         mm.active_marker_index -= 1
         if mm.active_marker_index < 0:
             mm.active_marker_index = 0
+
+        # 3) Remove movie clip markers
+        name = str(frame)
+        for movieclip in bpy.data.movieclips:
+            _id = movieclip.panorama_settings.markers.find(name)
+            if _id != -1:
+                movieclip.panorama_settings.markers.remove(_id)
 
         return {'FINISHED'}
 
@@ -112,7 +119,7 @@ class CLIP_OT_panorama_marker_del(bpy.types.Operator):
 # ###############################
 
 class PanoramaMarkerInfo(bpy.types.PropertyGroup):
-    name = StringProperty(default="", update=update_marker_name)
+    name = StringProperty(name="Name", default="", update=update_marker_name)
     frame = IntProperty(name="Frame", min=1, default=1, subtype='TIME')
 
 
