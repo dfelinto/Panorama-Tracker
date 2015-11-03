@@ -25,7 +25,7 @@ import bpy
 # User Interface
 # ###############################
 
-class CLIP_PanoramaPanel(bpy.types.Panel):
+class CLIP_PT_panorama(bpy.types.Panel):
     ''''''
     bl_label = "Panorama"
     bl_space_type = "CLIP_EDITOR"
@@ -53,12 +53,46 @@ class CLIP_PanoramaPanel(bpy.types.Panel):
         col.prop(settings, "show_preview")
 
 
+class CLIP_PT_panorama_markers(bpy.types.Panel):
+    bl_label = "Markers"
+    bl_space_type = "CLIP_EDITOR"
+    bl_region_type = "TOOLS"
+    bl_category = "Panorama"
+
+    @classmethod
+    def poll(cls, context):
+        return True
+
+    def draw(self, context):
+        layout = self.layout
+        scene = context.scene
+
+        mm = scene.panorama_markers_manager
+        row = layout.row()
+        row.template_list("UI_UL_list", "template_list_markers", mm,
+                          "markers", mm, "active_marker_index", rows=3, maxrows=5)
+
+        sub = row.column()
+        subsub = sub.column(align=True)
+        subsub.operator("clip.panorama_marker_add", icon='ZOOMIN', text="")
+        subsub.operator("clip.panorama_marker_del", icon='ZOOMOUT', text="")
+
+        if len(mm.markers):
+            marker = mm.markers[mm.active_marker_index]
+            col = layout.column()
+            col.prop(marker, "name")
+
+            frame_smpte = bpy.utils.smpte_from_frame(marker.frame)
+            col.label(text="Frame: {0}".format(frame_smpte))
+
 # ###############################
 #  Register / Unregister
 # ###############################
 def register():
-    bpy.utils.register_class(CLIP_PanoramaPanel)
+    bpy.utils.register_class(CLIP_PT_panorama)
+    bpy.utils.register_class(CLIP_PT_panorama_markers)
 
 
 def unregister():
-    bpy.utils.unregister_class(CLIP_PanoramaPanel)
+    bpy.utils.unregister_class(CLIP_PT_panorama)
+    bpy.utils.unregister_class(CLIP_PT_panorama_markers)

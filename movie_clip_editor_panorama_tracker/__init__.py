@@ -31,6 +31,7 @@ bl_info = {
 
 
 from . import core
+from . import marker
 from . import preview
 from . import ui
 
@@ -40,12 +41,14 @@ from . import ui
 # ###############################
 def register():
     core.register()
+    marker.register()
     preview.register()
     ui.register()
 
 
 def unregister():
     core.unregister()
+    marker.unregister()
     preview.unregister()
     ui.unregister()
 
