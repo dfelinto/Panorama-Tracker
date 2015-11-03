@@ -267,6 +267,9 @@ class CLIP_OT_panorama_reset(bpy.types.Operator):
 
         return {'FINISHED'}
 
+    def invoke(self, context, events):
+        return generic_invoke(self, context)
+
 
 class CLIP_OT_panorama_camera(bpy.types.Operator):
     """"""
@@ -399,6 +402,9 @@ class CLIP_OT_panorama_focus(bpy.types.Operator):
 
         return {'FINISHED'}
 
+    def invoke(self, context, events):
+        return generic_invoke(self, context)
+
 
 class CLIP_OT_panorama_target(bpy.types.Operator):
     """"""
@@ -433,6 +439,9 @@ class CLIP_OT_panorama_target(bpy.types.Operator):
 
         return {'FINISHED'}
 
+    def invoke(self, context, events):
+        return generic_invoke(self, context)
+
 
 class CLIP_OT_panorama_flip(bpy.types.Operator):
     """"""
@@ -462,9 +471,23 @@ class CLIP_OT_panorama_flip(bpy.types.Operator):
         context.area.tag_redraw()
         return {'FINISHED'}
 
+    def invoke(self, context, events):
+        return generic_invoke(self, context)
 
-def get_marker(scene, movieclip, create=True, current_time=False):
-    """create a marker if non existent"""
+
+def generic_invoke(self, context):
+    """make sure operator runs only for the active frame"""
+    scene = context.scene
+
+    if get_scene_marker(scene, True) != get_scene_marker(scene, False):
+        self.report({'ERROR'}, "This frame marker is not active")
+        return {'CANCELLED'}
+
+    return self.execute(context)
+
+
+def get_scene_marker(scene, current_time):
+    """get the scene panorama marker"""
     mm = scene.panorama_markers_manager
 
     if not len(mm.markers):
@@ -482,10 +505,20 @@ def get_marker(scene, movieclip, create=True, current_time=False):
                frame > frame_previous:
                 frame_previous = frame
                 scene_marker = marker
-
     else:
         scene_marker = mm.markers[mm.active_marker_index]
 
+    return scene_marker
+
+
+def get_marker(scene, movieclip, create=True, current_time=False):
+    """create a marker if non existent"""
+    mm = scene.panorama_markers_manager
+
+    if not len(mm.markers):
+        return None
+
+    scene_marker = get_scene_marker(scene, current_time)
     frame = str(scene_marker.frame)
 
     settings = movieclip.panorama_settings
@@ -503,7 +536,6 @@ def update_orientation(self, context):
     update_panorama_orientation(context.scene)
 
 
-@persistent
 def update_panorama_orientation(scene):
     """callback function called every frame"""
     pg = bpy.panorama_globals
@@ -543,6 +575,20 @@ def mapping_node_order_flip(orientation):
     return quat.to_euler('XYZ')
 
 
+@persistent
+def frame_post_callback(scene):
+    mm = scene.panorama_markers_manager
+    scene_marker = get_scene_marker(scene, True)
+
+    # update active scene marker
+    if scene_marker != get_scene_marker(scene, False):
+        _id = mm.markers.find(scene_marker.name)
+        mm.active_marker_index = _id
+
+    # update orientation
+    update_panorama_orientation(scene)
+
+
 # ###############################
 #  Properties
 # ###############################
@@ -578,7 +624,7 @@ def register():
 
     bpy.types.Scene.panorama_movieclip = StringProperty()
 
-    bpy.app.handlers.frame_change_post.append(update_panorama_orientation)
+    bpy.app.handlers.frame_change_post.append(frame_post_callback)
 
 
 def unregister():
@@ -586,7 +632,7 @@ def unregister():
     del bpy.types.MovieClip.panorama_settings
     del bpy.types.Scene.panorama_movieclip
 
-    bpy.app.handlers.frame_change_post.remove(update_panorama_orientation)
+    bpy.app.handlers.frame_change_post.remove(frame_post_callback)
 
     bpy.utils.unregister_class(CLIP_OT_panorama_flip)
     bpy.utils.unregister_class(CLIP_OT_panorama_focus)
