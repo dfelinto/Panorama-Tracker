@@ -627,15 +627,21 @@ def update_panorama_marker_orientation(scene):
     if not movieclip: return None
 
     settings = movieclip.panorama_settings
+    scene_marker = get_scene_marker(scene, False)
+
+    if not scene_marker: return None
+
     marker = get_marker(scene, movieclip, create=False, current_time=True)
     marker_prev = get_marker(scene, movieclip, create=False, current_time=True, previous=True)
 
     if not marker: return None
     if not marker_prev: return reset(marker)
 
+    tracking = movieclip.tracking.objects[movieclip.tracking.active_object_index]
+
     # get the focus/target of the previous marker
-    focus = marker_prev.focus
-    target = marker_prev.target
+    focus = tracking.tracks.get(marker_prev.focus)
+    target = tracking.tracks.get(marker_prev.target)
 
     if not focus or not target: return reset(marker)
 
@@ -644,12 +650,12 @@ def update_panorama_marker_orientation(scene):
     focus_marker = focus.markers.find_frame(frame)
     target_marker = target.markers.find_frame(frame)
 
-    if not focus_marker or not target_marker: return reset(scene_marker)
+    if not focus_marker or not target_marker: return reset(marker)
 
     focus_marker_prev = focus.markers.find_frame(frame - 1)
     target_marker_prev = target.markers.find_frame(frame - 1)
 
-    if not focus_marker_prev or not target_marker_prev: return reset(scene_marker)
+    if not focus_marker_prev or not target_marker_prev: return reset(marker)
 
     use_flip = marker_prev.use_flip
 
@@ -657,7 +663,7 @@ def update_panorama_marker_orientation(scene):
     orientation = calculate_orientation_markers(focus_marker.co, target_marker.co, use_flip)
     orientation_prev = calculate_orientation_markers(focus_marker_prev.co, target_marker_prev.co, use_flip)
 
-    marker.orientation = orientation - orientation_prev
+    # TODO
 
 
 @persistent
