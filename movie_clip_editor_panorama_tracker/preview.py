@@ -334,7 +334,7 @@ def panorama_tracker_load_post(dummy):
 # ###############################
 def register():
     bpy.app.handlers.load_pre.append(panorama_tracker_load_pre)
-    bpy.app.handlers.load_pre.append(panorama_tracker_load_post)
+    bpy.app.handlers.load_post.append(panorama_tracker_load_post)
 
     bpy.panorama_globals = PanoramaGlobals()
     bpy.panorama_globals.handler = bpy.types.SpaceClipEditor.draw_handler_add(draw_panorama_callback_px, (None,), 'WINDOW', 'POST_PIXEL')
@@ -342,6 +342,6 @@ def register():
 
 def unregister():
     bpy.app.handlers.load_pre.remove(panorama_tracker_load_pre)
-    bpy.app.handlers.load_pre.remove(panorama_tracker_load_post)
+    bpy.app.handlers.load_post.remove(panorama_tracker_load_post)
 
     bpy.types.SpaceClipEditor.draw_handler_remove(bpy.panorama_globals.handler, 'WINDOW')
