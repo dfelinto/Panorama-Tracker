@@ -50,6 +50,8 @@ from math import (
 
 from .preview import show_preview_update
 
+IDENTITY = (1.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,1.0)
+
 # ###############################
 # Global Functions
 # ###############################
@@ -141,6 +143,13 @@ def valid_track(movieclip, name):
 
     return track
 
+
+def matrix_to_list(matrix):
+    l = []
+    for i in matrix:
+        l.extend(i)
+    return l
+
 # ###############################
 #  Geometry Functions
 # ###############################
@@ -178,19 +187,22 @@ def sphere_to_euler(vecx, vecy, vecz):
 
 def calculate_orientation_markers(focus, target, use_flip):
     """
+    get the orientation transformation to transform the markers parallel to the ground
+
     :param focus: coordinates of the focus marker
     :type focus: Vector(3)
     :param target: coordinates of the target marker
     :return: transformation required to horizontalize those markers
-    :rtype: Euler
+    :rtype: rotation Matrix
     """
     vecx = equirectangular_to_sphere(focus)
     vecy = equirectangular_to_sphere(target)
 
     if use_flip:
-        vecz = vecx.cross(vecy)
-    else:
         vecz = vecy.cross(vecx)
+    else:
+        vecz = vecx.cross(vecy)
+
     vecz.normalize()
 
     # retarget y axis again
@@ -199,38 +211,40 @@ def calculate_orientation_markers(focus, target, use_flip):
 
     # work with euler
     orientation = sphere_to_euler(vecx, nvecy, vecz)
-    return orientation
+    return orientation.to_matrix()
 
 
 def calculate_orientation(scene):
-    """return the compound orientation of the tracker + scene orientations"""
+    """
+    get the compound orientation transformation for the current frame
 
+    :return: transformation required to horizontalize those markers
+    :rtype: rotation Matrix
+    """
     movieclip = bpy.data.movieclips.get(scene.panorama_movieclip)
-    if not movieclip: return (0,0,0)
+    if not movieclip: return IDENTITY
 
     settings = movieclip.panorama_settings
     marker = get_marker(scene, movieclip, create=False, current_time=True)
 
-    if not marker: return (0,0,0)
+    if not marker: return IDENTITY
 
     tracking = movieclip.tracking.objects[movieclip.tracking.active_object_index]
     focus = tracking.tracks.get(marker.focus)
     target = tracking.tracks.get(marker.target)
     frame_current = scene.frame_current
 
-    if not focus or not target: return (0,0,0)
+    if not focus or not target: return IDENTITY
 
     focus_marker = focus.markers.find_frame(frame_current)
     target_marker = target.markers.find_frame(frame_current)
 
-    if not focus_marker or not target_marker: return (0,0,0)
+    if not focus_marker or not target_marker: return IDENTITY
 
     orientation = calculate_orientation_markers(focus_marker.co, target_marker.co, marker.use_flip)
 
-    # store orientation
-    orientation = (settings.orientation.to_matrix() * marker.orientation.to_matrix() * orientation.to_matrix()).to_euler()
-
-    return (-orientation[0], -orientation[1], -orientation[2])
+    matrix = settings.orientation * marker.orientation * orientation
+    return matrix.transposed()
 
 
 def set_3d_cursor(scene):
@@ -376,9 +390,9 @@ class CLIP_OT_panorama_camera(bpy.types.Operator):
         scene.cursor_location = set_3d_cursor(scene)
 
         # Uses the current orientation as the final one
-        settings.orientation = (0,0,0)
+        settings.orientation = IDENTITY
         orientation = calculate_orientation(scene)
-        settings.orientation = Euler((-orientation[0], -orientation[1], -orientation[2])).to_matrix().inverted().to_euler()
+        settings.orientation = matrix_to_list(orientation.inverted())
 
         return {'FINISHED'}
 
@@ -588,7 +602,11 @@ def update_panorama_orientation(scene):
 
     if is_enabled:
         orientation = calculate_orientation(scene)
-        pg.orientation = mapping_node_order_flip(orientation).to_matrix().inverted().to_4x4()
+
+        if bpy.app.version > (2, 73, 4):
+            pg.orientation = orientation.inverted().to_4x4()
+        else:
+            pg.orientation = mapping_order_flip(orientation).inverted().to_4x4()
 
     world = scene.world
     if not world: return
@@ -602,26 +620,30 @@ def update_panorama_orientation(scene):
     if orientation == None:
         orientation = calculate_orientation(scene)
 
-    if bpy.app.version <= (2, 73, 4):
-        tex_env.texture_mapping.rotation = orientation
+    if bpy.app.version > (2, 73, 4):
+        tex_env.texture_mapping.rotation = orientation.to_euler()
     else:
-        tex_env.texture_mapping.rotation = mapping_node_order_flip(orientation)
+        tex_env.texture_mapping.rotation = mapping_order_flip(orientation).to_euler()
 
 
-def mapping_node_order_flip(orientation):
+def mapping_order_flip(orientation):
     """
     Flip euler order of mapping shader node
     see: Blender #a1ffb49
     """
-    rot = Euler(orientation)
-    rot.order = 'ZYX'
+    rot = orientation.to_euler()
+    rot.order = 'XYZ'
     quat = rot.to_quaternion()
-    return quat.to_euler('XYZ')
+    return quat.to_euler('ZYX').to_matrix()
 
 
 def update_panorama_marker_orientation(scene):
     def reset(marker):
-        marker.orientation = Euler()
+        marker.orientation = (
+                1.0, 0.0, 0.0,
+                0.0, 1.0, 0.0,
+                0.0, 0.0, 1.0,
+                )
 
     movieclip = bpy.data.movieclips.get(scene.panorama_movieclip)
     if not movieclip: return None
@@ -692,11 +714,31 @@ class TrackingPanoramaMarkerInfo(bpy.types.PropertyGroup):
     use_flip = BoolProperty()
     focus = StringProperty()
     target = StringProperty()
-    orientation= FloatVectorProperty(name="Orientation", description="Euler rotation", subtype='EULER', default=(0.0,0.0,0.0))
+    orientation= FloatVectorProperty(
+            name="Orientation",
+            description="rotation",
+            subtype='MATRIX',
+            size=9,
+            default=(
+                1.0, 0.0, 0.0,
+                0.0, 1.0, 0.0,
+                0.0, 0.0, 1.0),
+            )
 
 
 class TrackingPanoramaSettings(bpy.types.PropertyGroup):
-    orientation= FloatVectorProperty(name="Orientation", description="Euler rotation", subtype='EULER', default=(0.0,0.0,0.0), update=update_orientation)
+    orientation= FloatVectorProperty(
+            name="Orientation",
+            description="rotation",
+            subtype='MATRIX',
+            size=9,
+            default=(
+                1.0, 0.0, 0.0,
+                0.0, 1.0, 0.0,
+                0.0, 0.0, 1.0),
+            update=update_orientation,
+            )
+
     show_preview = BoolProperty(default=False, name="Show Preview", update=show_preview_update)
     markers = CollectionProperty(type=TrackingPanoramaMarkerInfo)
 
