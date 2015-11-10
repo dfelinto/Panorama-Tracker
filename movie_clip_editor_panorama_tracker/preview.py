@@ -279,7 +279,7 @@ def draw_panorama_callback_px(not_used):
     matrix = pg.orientation
 
     # applied the  calibration matrix
-    transformation_matrix = Buffer(GL_FLOAT, (4,4), matrix)
+    transformation_matrix = Buffer(GL_FLOAT, (3,3), matrix)
 
     setup_uniforms(pg.program, pg.color_texture, transformation_matrix)
 
@@ -315,7 +315,7 @@ class PanoramaGlobals:
     buffer_height = -1
     color_texture = -1
     program = -1
-    orientation = [[i for i in range(4)] for j in range(4)]
+    orientation = [[i for i in range(3)] for j in range(3)]
     is_rendering = False
 
 
