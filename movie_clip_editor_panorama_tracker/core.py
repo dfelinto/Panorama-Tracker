@@ -176,6 +176,32 @@ def sphere_to_euler(vecx, vecy, vecz):
 # Main function
 # ###############################
 
+def calculate_orientation_markers(focus, target, use_flip):
+    """
+    :param focus: coordinates of the focus marker
+    :type focus: Vector(3)
+    :param target: coordinates of the target marker
+    :return: transformation required to horizontalize those markers
+    :rtype: Euler
+    """
+    vecx = equirectangular_to_sphere(focus)
+    vecy = equirectangular_to_sphere(target)
+
+    if use_flip:
+        vecz = vecx.cross(vecy)
+    else:
+        vecz = vecy.cross(vecx)
+    vecz.normalize()
+
+    # retarget y axis again
+    nvecy = vecz.cross(vecx)
+    nvecy.normalize()
+
+    # work with euler
+    orientation = sphere_to_euler(vecx, nvecy, vecz)
+    return orientation
+
+
 def calculate_orientation(scene):
     """return the compound orientation of the tracker + scene orientations"""
 
@@ -199,22 +225,10 @@ def calculate_orientation(scene):
 
     if not focus_marker or not target_marker: return (0,0,0)
 
-    vecx = equirectangular_to_sphere(focus_marker.co)
-    vecy = equirectangular_to_sphere(target_marker.co)
-
-    if marker.use_flip:
-        vecz = vecx.cross(vecy)
-    else:
-        vecz = vecy.cross(vecx)
-    vecz.normalize()
-
-    # retarget y axis again
-    nvecy = vecz.cross(vecx)
-    nvecy.normalize()
+    orientation = calculate_orientation_markers(focus_marker.co, target_marker.co, marker.use_flip)
 
     # store orientation
-    orientation = sphere_to_euler(vecx, nvecy, vecz)
-    orientation = (settings.orientation.to_matrix() * orientation.to_matrix()).to_euler()
+    orientation = (settings.orientation.to_matrix() * marker.orientation.to_matrix() * orientation.to_matrix()).to_euler()
 
     return (-orientation[0], -orientation[1], -orientation[2])
 
@@ -486,6 +500,30 @@ def generic_invoke(self, context):
     return self.execute(context)
 
 
+def get_scene_marker_previous(scene):
+    """get the previous scene panorama marker"""
+    mm = scene.panorama_markers_manager
+
+    if not len(mm.markers):
+        return None
+
+    scene_marker = get_scene_marker(scene, True)
+
+    frame_current = scene_marker.frame
+    frame_previous = 0
+    scene_marker = None
+
+    for marker in mm.markers:
+        frame = marker.frame
+
+        if frame < frame_current and \
+           frame > frame_previous:
+            frame_previous = frame
+            scene_marker = marker
+
+    return scene_marker
+
+
 def get_scene_marker(scene, current_time):
     """get the scene panorama marker"""
     mm = scene.panorama_markers_manager
@@ -511,14 +549,20 @@ def get_scene_marker(scene, current_time):
     return scene_marker
 
 
-def get_marker(scene, movieclip, create=True, current_time=False):
+def get_marker(scene, movieclip, create=True, current_time=False, previous=False):
     """create a marker if non existent"""
     mm = scene.panorama_markers_manager
 
     if not len(mm.markers):
         return None
 
-    scene_marker = get_scene_marker(scene, current_time)
+    if previous:
+        scene_marker = get_scene_marker_previous(scene)
+        if not scene_marker:
+            return None
+    else:
+        scene_marker = get_scene_marker(scene, current_time)
+
     frame = str(scene_marker.frame)
 
     settings = movieclip.panorama_settings
@@ -575,6 +619,47 @@ def mapping_node_order_flip(orientation):
     return quat.to_euler('XYZ')
 
 
+def update_panorama_marker_orientation(scene):
+    def reset(marker):
+        marker.orientation = Euler()
+
+    movieclip = bpy.data.movieclips.get(scene.panorama_movieclip)
+    if not movieclip: return None
+
+    settings = movieclip.panorama_settings
+    marker = get_marker(scene, movieclip, create=False, current_time=True)
+    marker_prev = get_marker(scene, movieclip, create=False, current_time=True, previous=True)
+
+    if not marker: return None
+    if not marker_prev: return reset(marker)
+
+    # get the focus/target of the previous marker
+    focus = marker_prev.focus
+    target = marker_prev.target
+
+    if not focus or not target: return reset(marker)
+
+    frame = scene_marker.frame
+
+    focus_marker = focus.markers.find_frame(frame)
+    target_marker = target.markers.find_frame(frame)
+
+    if not focus_marker or not target_marker: return reset(scene_marker)
+
+    focus_marker_prev = focus.markers.find_frame(frame - 1)
+    target_marker_prev = target.markers.find_frame(frame - 1)
+
+    if not focus_marker_prev or not target_marker_prev: return reset(scene_marker)
+
+    use_flip = marker_prev.use_flip
+
+    # calculate the difference of orientation between the current and previous position of the markers
+    orientation = calculate_orientation_markers(focus_marker.co, target_marker.co, use_flip)
+    orientation_prev = calculate_orientation_markers(focus_marker_prev.co, target_marker_prev.co, use_flip)
+
+    marker.orientation = orientation - orientation_prev
+
+
 @persistent
 def frame_post_callback(scene):
     mm = scene.panorama_markers_manager
@@ -584,6 +669,9 @@ def frame_post_callback(scene):
     if scene_marker != get_scene_marker(scene, False):
         _id = mm.markers.find(scene_marker.name)
         mm.active_marker_index = _id
+
+        # update the orientation of the new marker
+        update_panorama_marker_orientation(scene)
 
     # update orientation
     update_panorama_orientation(scene)
@@ -598,6 +686,7 @@ class TrackingPanoramaMarkerInfo(bpy.types.PropertyGroup):
     use_flip = BoolProperty()
     focus = StringProperty()
     target = StringProperty()
+    orientation= FloatVectorProperty(name="Orientation", description="Euler rotation", subtype='EULER', default=(0.0,0.0,0.0))
 
 
 class TrackingPanoramaSettings(bpy.types.PropertyGroup):
