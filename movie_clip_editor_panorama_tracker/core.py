@@ -392,7 +392,7 @@ class CLIP_OT_panorama_camera(bpy.types.Operator):
         # Uses the current orientation as the final one
         settings.orientation = IDENTITY
         orientation = calculate_orientation(scene)
-        settings.orientation = matrix_to_list(orientation.inverted())
+        settings.orientation = matrix_to_list(orientation.transposed())
 
         return {'FINISHED'}
 
@@ -604,9 +604,9 @@ def update_panorama_orientation(scene):
         orientation = calculate_orientation(scene)
 
         if bpy.app.version > (2, 73, 4):
-            pg.orientation = orientation.inverted().to_4x4()
+            pg.orientation = orientation.transposed().to_4x4()
         else:
-            pg.orientation = mapping_order_flip(orientation).inverted().to_4x4()
+            pg.orientation = mapping_order_flip(orientation).transposed().to_4x4()
 
     world = scene.world
     if not world: return
