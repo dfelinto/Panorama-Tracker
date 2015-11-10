@@ -202,6 +202,7 @@ def panorama_reset(panorama_globals):
         return False
 
     pg.is_enabled = False
+    pg.is_rendering = False
 
     if pg.color_texture:
         delete_image(pg.color_texture)
@@ -229,6 +230,8 @@ def draw_panorama_callback_px(not_used):
     pg = bpy.panorama_globals
 
     if not pg.is_enabled: return
+
+    if pg.is_rendering: return
 
     movieclip = bpy.context.edit_movieclip
     scene = bpy.context.scene
@@ -313,6 +316,7 @@ class PanoramaGlobals:
     color_texture = -1
     program = -1
     orientation = [[i for i in range(4)] for j in range(4)]
+    is_rendering = False
 
 
 # ############################################################
@@ -329,12 +333,24 @@ def panorama_tracker_load_post(dummy):
     panorama_reset(bpy.panorama_globals)
 
 
+@persistent
+def panorama_tracker_render_pre(dummy):
+    bpy.panorama_globals.is_rendering = True
+
+
+@persistent
+def panorama_tracker_render_post(dummy):
+    bpy.panorama_globals.is_rendering = False
+
+
 # ###############################
 #  Register / Unregister
 # ###############################
 def register():
     bpy.app.handlers.load_pre.append(panorama_tracker_load_pre)
     bpy.app.handlers.load_post.append(panorama_tracker_load_post)
+    bpy.app.handlers.render_pre.append(panorama_tracker_render_pre)
+    bpy.app.handlers.render_post.append(panorama_tracker_render_post)
 
     bpy.panorama_globals = PanoramaGlobals()
     bpy.panorama_globals.handler = bpy.types.SpaceClipEditor.draw_handler_add(draw_panorama_callback_px, (None,), 'WINDOW', 'POST_PIXEL')
@@ -343,5 +359,7 @@ def register():
 def unregister():
     bpy.app.handlers.load_pre.remove(panorama_tracker_load_pre)
     bpy.app.handlers.load_post.remove(panorama_tracker_load_post)
+    bpy.app.handlers.render_pre.remove(panorama_tracker_render_pre)
+    bpy.app.handlers.render_post.remove(panorama_tracker_render_post)
 
     bpy.types.SpaceClipEditor.draw_handler_remove(bpy.panorama_globals.handler, 'WINDOW')
