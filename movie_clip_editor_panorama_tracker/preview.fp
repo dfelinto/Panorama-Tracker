@@ -1,4 +1,4 @@
-uniform mat3 transformation_matrix;
+uniform mat4 transformation_matrix;
 uniform sampler2D color_buffer;
 
 #define PI  3.14159265
@@ -35,9 +35,9 @@ void main()
 {
     vec2 coords = gl_TexCoord[0].st;
     vec3 source = equirectangular2world(coords);
-    vec3 world = transformation_matrix * source;
+    vec4 world = transformation_matrix * vec4(source.x, source.y, source.z, 1.0);
 
-    vec2 uv = world2equirectangular(world);
+    vec2 uv = world2equirectangular(world.xyz);
 
     gl_FragColor.rgb = texture2D(color_buffer, uv).rgb;
     gl_FragColor.a = 1.0;

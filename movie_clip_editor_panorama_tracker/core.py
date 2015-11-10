@@ -588,7 +588,7 @@ def update_panorama_orientation(scene):
 
     if is_enabled:
         orientation = calculate_orientation(scene)
-        pg.orientation = mapping_node_order_flip(orientation).to_matrix().inverted()
+        pg.orientation = mapping_node_order_flip(orientation).to_matrix().inverted().to_4x4()
 
     world = scene.world
     if not world: return
