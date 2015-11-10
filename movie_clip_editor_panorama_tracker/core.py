@@ -464,7 +464,21 @@ def update_panorama_orientation(scene):
     if orientation == None:
         orientation = calculate_orientation(scene)
 
-    tex_env.texture_mapping.rotation = orientation
+    if bpy.app.version <= (2, 73, 4):
+        tex_env.texture_mapping.rotation = orientation
+    else:
+        tex_env.texture_mapping.rotation = mapping_node_order_flip(orientation)
+
+
+def mapping_node_order_flip(orientation):
+    """
+    Flip euler order of mapping shader node
+    see: Blender #a1ffb49
+    """
+    rot = Euler(orientation)
+    rot.order = 'ZYX'
+    quat = rot.to_quaternion()
+    return quat.to_euler('XYZ')
 
 
 # ###############################
