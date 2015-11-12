@@ -50,7 +50,7 @@ from math import (
 
 from .preview import show_preview_update
 
-IDENTITY = (1.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,1.0)
+IDENTITY = Matrix.Identity(3)
 
 # ###############################
 # Global Functions
@@ -298,8 +298,7 @@ class CLIP_OT_panorama_reset(bpy.types.Operator):
         marker = get_marker(context.scene, movieclip, create=False)
 
         if marker:
-            marker.focus = ""
-            marker.target = ""
+            marker.reset()
 
         return {'FINISHED'}
 
@@ -398,7 +397,7 @@ class CLIP_OT_panorama_camera(bpy.types.Operator):
         scene.cursor_location = set_3d_cursor(scene)
 
         # Uses the current orientation as the final one
-        settings.orientation = IDENTITY
+        settings.orientation = matrix_to_list(IDENTITY)
         orientation = calculate_orientation(scene)
         settings.orientation = matrix_to_list(orientation.transposed())
 
@@ -732,6 +731,15 @@ class TrackingPanoramaMarkerInfo(bpy.types.PropertyGroup):
                 0.0, 1.0, 0.0,
                 0.0, 0.0, 1.0),
             )
+
+    def reset(self):
+        self.focus = ""
+        self.target = ""
+        self.orientation = (
+                1.0, 0.0, 0.0,
+                0.0, 1.0, 0.0,
+                0.0, 0.0, 1.0,
+                )
 
 
 class TrackingPanoramaSettings(bpy.types.PropertyGroup):
