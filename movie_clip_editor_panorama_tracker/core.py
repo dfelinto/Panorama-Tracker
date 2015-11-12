@@ -173,11 +173,18 @@ def equirectangular_to_sphere(uv):
     return Vector((x,y,z))
 
 
+def sphere_to_matrix(vecx, vecy, vecz):
+    """
+    convert sphere orientation vectors to matrix
+    """
+    return Matrix((vecx, vecy, vecz))
+
+
 def sphere_to_euler(vecx, vecy, vecz):
     """
     convert sphere orientation vectors to euler
     """
-    M = Matrix((vecx, vecy, vecz))
+    M = sphere_to_matrix(vecx, vecy, vecz)
     return M.to_euler()
 
 
@@ -187,11 +194,13 @@ def sphere_to_euler(vecx, vecy, vecz):
 
 def calculate_orientation_markers(focus, target, use_flip):
     """
-    get the orientation transformation to transform the markers parallel to the ground
+    get the orientation matrix of the focus point, with target
+    as a side vector.
 
     :param focus: coordinates of the focus marker
     :type focus: Vector(3)
     :param target: coordinates of the target marker
+    :type focus: Vector(3)
     :return: transformation required to horizontalize those markers
     :rtype: rotation Matrix
     """
@@ -209,9 +218,8 @@ def calculate_orientation_markers(focus, target, use_flip):
     nvecy = vecz.cross(vecx)
     nvecy.normalize()
 
-    # work with euler
-    orientation = sphere_to_euler(vecx, nvecy, vecz)
-    return orientation.to_matrix()
+    matrix = sphere_to_matrix(vecx, nvecy, vecz)
+    return matrix
 
 
 def calculate_orientation(scene):
@@ -243,8 +251,8 @@ def calculate_orientation(scene):
 
     orientation = calculate_orientation_markers(focus_marker.co, target_marker.co, marker.use_flip)
 
-    matrix = settings.orientation * marker.orientation * orientation
-    return matrix.transposed()
+    matrix = settings.orientation * marker.orientation * orientation.transposed()
+    return matrix
 
 
 def set_3d_cursor(scene):
